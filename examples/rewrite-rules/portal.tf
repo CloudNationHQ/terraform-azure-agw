@@ -50,12 +50,32 @@ locals {
             }
           }
         }
-        rewrite_rules = {
+        rewrite_rules = { # test this
           rules = {
-            # Security Headers - Always applied
             security_headers = {
               rule_sequence = 100
-              conditions    = {} # No conditions = always apply
+              conditions = {
+                not_internal_request = {
+                  variable = "http_req_X-Internal-Request"
+                  pattern  = "true"
+                  negate   = true # Apply when NOT an internal request
+                },
+                public_endpoint = {
+                  variable    = "var_uri_path"
+                  pattern     = "^/(api|public)/.*"
+                  ignore_case = true
+                },
+                not_health_check = {
+                  variable = "var_uri_path"
+                  pattern  = "^/health$"
+                  negate   = true
+                },
+                production_traffic = {
+                  variable    = "var_host"
+                  pattern     = "^(api|www)[.]company[.]com$"
+                  ignore_case = true
+                }
+              }
               response_header_configurations = {
                 security_policy = {
                   header_name  = "Content-Security-Policy"
@@ -79,6 +99,35 @@ locals {
                 }
               }
             },
+            #rewrite_rules = {
+            #rules = {
+            ## Security Headers - Always applied
+            #security_headers = {
+            #rule_sequence = 100
+            #conditions    = {} # No conditions = always apply
+            #response_header_configurations = {
+            #security_policy = {
+            #header_name  = "Content-Security-Policy"
+            #header_value = "default-src 'self' *.company.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.google-analytics.com; style-src 'self' 'unsafe-inline' *.googleapis.com;"
+            #},
+            #frame_options = {
+            #header_name  = "X-Frame-Options"
+            #header_value = "SAMEORIGIN"
+            #},
+            #hsts = {
+            #header_name  = "Strict-Transport-Security"
+            #header_value = "max-age=31536000; includeSubDomains"
+            #},
+            #content_options = {
+            #header_name  = "X-Content-Type-Options"
+            #header_value = "nosniff"
+            #},
+            #xss_protection = {
+            #header_name  = "X-XSS-Protection"
+            #header_value = "1; mode=block"
+            #}
+            #}
+            #},
             # CORS Headers - Based on Origin
             cors_headers = {
               rule_sequence = 200
