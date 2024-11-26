@@ -348,13 +348,27 @@ resource "azurerm_role_assignment" "kv_secret_user" {
   principal_id         = azurerm_user_assigned_identity.application_gateway_identity.principal_id
 }
 
-# TODO:
+resource "azurerm_network_interface_application_gateway_backend_address_pool_association" "vm" {
+  for_each = {
+    for item in flatten([
+      for app_key, app in var.config.applications : [
+        for listener_key, listener in app.listeners : [
+          for pool_key, pool in listener.backend_pools : [
+            for vm_key, vm in try(pool.vm_associations, {}) : {
+              key = "${app_key}-${listener.name}-${pool_key}-${vm_key}"
+              value = {
+                network_interface_id    = vm.network_interface_id
+                ip_configuration_name   = vm.ip_configuration_name
+                backend_address_pool_id = "${app_key}-${listener.name}-${pool_key}"
+              }
+            }
+          ]
+        ]
+      ]
+    ]) : item.key => item.value
+  }
 
-#resource "azurerm_network_interface_application_gateway_backend_address_pool_association" "vm" {
-#for_each = {
-#for key, nic in try(var.application_gateway.backend_pool_interfaces, {}) : key => nic
-#}
-#network_interface_id    = each.value.network_interface_id
-#ip_configuration_name   = each.value.ip_configuration_name
-#backend_address_pool_id = tolist(azurerm_application_gateway.appgateway.backend_address_pool).0.id
-#}
+  network_interface_id    = each.value.network_interface_id
+  ip_configuration_name   = each.value.ip_configuration_name
+  backend_address_pool_id = [for pool in azurerm_application_gateway.application_gateway.backend_address_pool : pool.id if pool.name == each.value.backend_address_pool_id][0]
+}
