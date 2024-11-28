@@ -110,7 +110,7 @@ module "application_gateway" {
     }
 
     applications = {
-      api = local.api
+      website = local.website
     }
   }
 }
