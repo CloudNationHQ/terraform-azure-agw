@@ -1,7 +1,7 @@
 locals {
   rules = {
-    tcp_65200_65535_ports = {
-      name                       = "TCP-65200-65535-ports"
+    allow_gw_manager = {
+      name                       = "Allow-GWManager"
       priority                   = 110
       direction                  = "Inbound"
       access                     = "Allow"
@@ -11,20 +11,20 @@ locals {
       source_address_prefix      = "GatewayManager"
       destination_address_prefix = "*"
     }
-    tcp_port_for_web = {
-      name                       = "TCP-port-for-web"
+    allow_application_gateway = {
+      name                       = "Allow-ApplicationGateway"
       priority                   = 120
       direction                  = "Inbound"
       access                     = "Allow"
-      protocol                   = "Tcp"
+      protocol                   = "*"
       source_port_range          = "*"
       destination_port_ranges    = ["80", "443"]
       source_address_prefix      = "Internet"
       destination_address_prefix = "*"
     }
-    any_load_balancer = {
-      name                       = "Any-load-balancer"
-      priority                   = 4000
+    allow_load_balancer = {
+      name                       = "Allow-LoadBalancer"
+      priority                   = 130
       direction                  = "Inbound"
       access                     = "Allow"
       protocol                   = "*"

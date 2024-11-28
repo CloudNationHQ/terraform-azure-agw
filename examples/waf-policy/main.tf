@@ -70,10 +70,16 @@ module "public_ip" {
 module "policy" {
   source  = "cloudnationhq/wafwp/azure"
   version = "~> 1.0"
+
   config = {
     name           = module.naming.web_application_firewall_policy.name
     resource_group = module.rg.groups.demo.name
     location       = "westeurope"
+
+    policy_settings = {
+      mode = "Detection"
+    }
+
     managed_rules = {
       managed_rule_sets = {
         owasp = {
