@@ -103,8 +103,8 @@ locals {
           priority              = 100
           rewrite_rule_set_name = "headers"
           url_path_map = {
-            default_pool                  = "blue"
-            default_settings              = "main"
+            default_pool     = "blue"
+            default_settings = "main"
             #default_rewrite_rule_set_name = "headers"
             path_rules = {
               api = {
@@ -183,8 +183,8 @@ locals {
           priority              = 110
           rewrite_rule_set_name = "headers"
           url_path_map = {
-            default_pool                  = "blue"
-            default_settings              = "main"
+            default_pool     = "blue"
+            default_settings = "main"
             #default_rewrite_rule_set_name = "headers"
             path_rules = {
               api = {

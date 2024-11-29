@@ -438,9 +438,3 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
     if pool.name == each.value.pool_name
   ][0]
 }
-
-# TODO: fix naming
-# TODO: make identity, certificate blocks and user assigned identity and role assignment optional, because http settings can be used without them
-# TODO: add type definitions
-# TODO: add vault certificate authority issuer example
-# TODO: backend settings should also be optional

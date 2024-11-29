@@ -116,10 +116,8 @@ module "policy" {
 }
 
 module "application_gateway" {
-  #source  = "cloudnationhq/agw/azure"
-  #version = "~> 1.0"
-
-  source = "../../"
+  source  = "cloudnationhq/agw/azure"
+  version = "~> 1.0"
 
   resource_group = module.rg.groups.demo.name
   location       = module.rg.groups.demo.location
