@@ -100,22 +100,33 @@ module "application_gateway" {
 
     frontend_ip_configurations = {
       public = {
-        name                 = "feip-prod-westus-001"
+        name                 = "public-ip-configuration"
         public_ip_address_id = module.public_ip.configs.fe.id
+      }
+      private = {
+        name                          = "private-ip-configuration"
+        subnet_id                     = module.network.subnets.gw.id
+        private_ip_address            = "10.18.1.7"
+        private_ip_address_allocation = "Static"
       }
     }
 
     frontend_ports = {
       https = {
-        name = "fep-prod-westus-001"
+        name = "frontend-port-https"
         port = 443
+      }
+      http = {
+        name = "frontend-port-http"
+        port = 80
       }
     }
 
     applications = {
-      portal = local.portal
+      catalyst = local.catalyst
     }
 
-    rewrite_rule_sets = local.rewrite_rule_sets
+    rewrite_rule_sets       = local.rewrite_rule_sets
+    redirect_configurations = local.redirect_configurations
   }
 }

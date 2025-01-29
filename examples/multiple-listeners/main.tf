@@ -42,7 +42,7 @@ module "network" {
 
 module "kv" {
   source  = "cloudnationhq/kv/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
   naming  = local.naming
   vault = {
     name           = module.naming.key_vault.name_unique
@@ -68,8 +68,9 @@ module "public_ip" {
 }
 
 module "application_gateway" {
-  source  = "cloudnationhq/agw/azure"
-  version = "~> 1.0"
+  # source  = "cloudnationhq/agw/azure"
+  # version = "~> 1.0"
+  source = "../../"
 
   resource_group = module.rg.groups.demo.name
   location       = module.rg.groups.demo.location
@@ -86,6 +87,10 @@ module "application_gateway" {
       capacity = 2
     }
 
+    identity = {
+      type = "UserAssigned"
+    }
+
     gateway_ip_configurations = {
       main = {
         name      = "gateway-ip-configuration"
@@ -95,20 +100,29 @@ module "application_gateway" {
 
     frontend_ip_configurations = {
       public = {
-        name                 = "feip-prod-westus-001"
         public_ip_address_id = module.public_ip.configs.fe.id
+      }
+      private = {
+        subnet_id                     = module.network.subnets.gw.id
+        private_ip_address            = "10.18.1.7"
+        private_ip_address_allocation = "Static"
       }
     }
 
     frontend_ports = {
       https = {
-        name = "fep-prod-westus-001"
         port = 443
+      }
+      http = {
+        port = 80
       }
     }
 
     applications = {
       catalyst = local.catalyst
     }
+
+    rewrite_rule_sets       = local.rewrite_rule_sets
+    redirect_configurations = local.redirect_configurations
   }
 }

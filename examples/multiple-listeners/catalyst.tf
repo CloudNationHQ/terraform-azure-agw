@@ -1,52 +1,9 @@
 locals {
   catalyst = {
-    rewrite_rule_sets = {
-      headers = {
-        rules = {
-          add_custom_request_header = {
-            rule_sequence = 100
-            conditions    = {}
-            request_header_configurations = {
-              header1 = {
-                header_name  = "X-Custom-Header"
-                header_value = "CustomValue"
-              }
-            }
-            response_header_configurations = {
-              header1 = {
-                header_name  = "X-Response-Custom"
-                header_value = "ResponseValue"
-              }
-            }
-          }
-        }
-      }
-      headers2 = {
-        rules = {
-          add_custom_request_header2 = {
-            rule_sequence = 100
-            conditions    = {}
-            request_header_configurations = {
-              header2 = {
-                header_name  = "X-Custom-Header"
-                header_value = "CustomValue"
-              }
-            }
-            response_header_configurations = {
-              header2 = {
-                header_name  = "X-Response-Custom"
-                header_value = "ResponseValue"
-              }
-            }
-          }
-        }
-      }
-    },
     listeners = {
       global = {
-        name                           = "global-listener"
-        frontend_ip_configuration_name = "feip-prod-westus-001"
-        frontend_port_name             = "fep-prod-westus-001"
+        frontend_ip_configuration_name = "public"
+        frontend_port_name             = "https"
         protocol                       = "Https"
         host_name                      = "app.company.com"
         require_sni                    = false
@@ -54,144 +11,231 @@ locals {
           name                = "global-cert"
           key_vault_secret_id = module.kv.certs.global.secret_id
         }
-        backend_pools = {
+        backend_http_settings = {
+          blue = {
+            port      = 8080
+            protocol  = "Https"
+            host_name = "blue.internal"
+            probe = {
+              path     = "/health"
+              host     = "blue.internal"
+              interval = 30
+              timeout  = 30
+              match = {
+                body        = null
+                status_code = ["200-399"]
+              }
+            }
+          }
+          green = {
+            port      = 8080
+            protocol  = "Https"
+            host_name = "green.internal"
+            probe = {
+              path     = "/health"
+              host     = "green.internal"
+              interval = 30
+              timeout  = 30
+              match = {
+                status_code = ["200-399"]
+              }
+            }
+          }
+        }
+        backend_address_pools = {
           blue = {
             fqdns = ["blue.internal"]
-            http_settings = {
-              main = {
-                port      = 8080
-                protocol  = "Https"
-                host_name = "blue.internal"
-                probe = {
-                  protocol = "Https"
-                  path     = "/health"
-                  host     = "blue.internal"
-                  interval = 30
-                  timeout  = 30
-                  match = {
-                    body        = null
-                    status_code = ["200-399"]
-                  }
-                }
-              }
-            }
-          },
+          }
           green = {
             fqdns = ["green.internal"]
-            http_settings = {
-              main = {
-                port      = 8080
-                protocol  = "Https"
-                host_name = "green.internal"
-                probe = {
-                  protocol = "Https"
-                  path     = "/health"
-                  host     = "green.internal"
-                  interval = 30
-                  timeout  = 30
-                  match = {
-                    body        = null
-                    status_code = ["200-399"]
-                  }
-                }
-              }
-            }
           }
         }
-        routing = {
-          rule_type             = "PathBasedRouting"
-          priority              = 100
-          rewrite_rule_set_name = "headers"
+        routing_rule = {
+          rule_type = "PathBasedRouting"
+          priority  = 100
           url_path_map = {
-            default_pool     = "blue"
-            default_settings = "main"
-            #default_rewrite_rule_set_name = "headers"
+            default_backend_address_pool_name  = "blue"
+            default_backend_http_settings_name = "blue"
+            default_rewrite_rule_set_name      = "headers_blue"
             path_rules = {
               api = {
-                paths                 = ["/api/*"]
-                pool                  = "green"
-                settings              = "main"
-                rewrite_rule_set_name = "headers"
-              },
+                paths                      = ["/api/*"]
+                backend_address_pool_name  = "green"
+                backend_http_settings_name = "green"
+                rewrite_rule_set_name      = "headers_green"
+              }
               web = {
-                paths                 = ["/web/*"]
-                pool                  = "green"
-                settings              = "main"
-                rewrite_rule_set_name = "headers"
+                paths                      = ["/web/*"]
+                backend_address_pool_name  = "green"
+                backend_http_settings_name = "green"
+                rewrite_rule_set_name      = "headers_green"
               }
             }
           }
         }
-      },
+      }
       europe = {
-        name                           = "europe-listener"
-        frontend_ip_configuration_name = "feip-prod-westus-001"
-        frontend_port_name             = "fep-prod-westus-001"
-        protocol                       = "Https"
+        frontend_ip_configuration_name = "private"
+        frontend_port_name             = "http"
+        protocol                       = "Http"
         host_name                      = "app.company.eu"
         require_sni                    = false
-        certificate = {
-          name                = "europe-cert"
-          key_vault_secret_id = module.kv.certs.europe.secret_id
-        }
-        backend_pools = {
-          blue = {
-            fqdns = ["eu-blue.internal"]
-            http_settings = {
-              main = {
-                port      = 8080
-                protocol  = "Https"
-                host_name = "eu-blue.internal"
-                probe = {
-                  protocol = "Https"
-                  path     = "/health"
-                  host     = "eu-blue.internal"
-                  interval = 30
-                  timeout  = 30
-                  match = {
-                    body        = null
-                    status_code = ["200-399"]
-                  }
-                }
+        backend_http_settings = {
+          main = {
+            port     = 8080
+            protocol = "Https"
+            probe = {
+              path     = "/health"
+              host     = "eu-blue.internal"
+              interval = 30
+              timeout  = 30
+              match = {
+                body        = null
+                status_code = ["200-399"]
               }
             }
+          }
+        }
+        backend_address_pools = {
+          blue = {
+            fqdns = ["eu-blue.internal"]
           }
           green = {
             fqdns = ["eu-green.internal"]
-            http_settings = {
-              main = {
-                port      = 8080
-                protocol  = "Https"
-                host_name = "eu-green.internal"
-                probe = {
-                  protocol = "Https"
-                  path     = "/health"
-                  host     = "eu-green.internal"
-                  interval = 30
-                  timeout  = 30
-                  match = {
-                    body        = null
-                    status_code = ["200-399"]
-                  }
-                }
+          }
+        }
+        routing_rule = {
+          rule_type = "PathBasedRouting"
+          priority  = 110
+          url_path_map = {
+            default_backend_address_pool_name  = "blue"
+            default_backend_http_settings_name = "main"
+            default_rewrite_rule_set_name      = "headers_blue"
+            path_rules = {
+              api = {
+                paths                      = ["/api/*"]
+                backend_address_pool_name  = "green"
+                backend_http_settings_name = "main"
+                rewrite_rule_set_name      = "headers_green"
               }
             }
           }
         }
-        routing = {
-          rule_type             = "PathBasedRouting"
-          priority              = 110
-          rewrite_rule_set_name = "headers"
+      }
+      america = {
+        frontend_ip_configuration_name = "private"
+        frontend_port_name             = "http"
+        protocol                       = "Http"
+        host_name                      = "app.company.us"
+        require_sni                    = false
+        backend_http_settings = {
+          main = {
+            port     = 8080
+            protocol = "Https"
+            probe = {
+              path     = "/health"
+              host     = "asia-blue.internal"
+              interval = 30
+              timeout  = 30
+              match = {
+                body        = null
+                status_code = ["200-399"]
+              }
+            }
+          }
+        }
+        backend_address_pools = {
+          blue = {
+            fqdns = ["us-blue.internal"]
+          }
+          green = {
+            fqdns = ["us-green.internal"]
+          }
+        }
+        routing_rule = {
+          rule_type                  = "Basic"
+          priority                   = 130
+          backend_http_settings_name = "main"
+          backend_address_pool_name  = "blue"
+        }
+      }
+      asia = {
+        frontend_ip_configuration_name = "private"
+        frontend_port_name             = "http"
+        protocol                       = "Http"
+        host_name                      = "app.company.as"
+        require_sni                    = false
+        backend_http_settings = {
+          main = {
+            port     = 8080
+            protocol = "Https"
+            probe = {
+              path     = "/health"
+              host     = "asia-blue.internal"
+              interval = 30
+              timeout  = 30
+              match = {
+                body        = null
+                status_code = ["200-399"]
+              }
+            }
+          }
+        }
+        backend_address_pools = {
+          blue = {
+            fqdns = ["as-blue.internal"]
+          }
+          green = {
+            fqdns = ["as-green.internal"]
+          }
+        }
+        routing_rule = {
+          rule_type                   = "Basic"
+          priority                    = 120
+          redirect_configuration_name = "to_global"
+        }
+      }
+      africa = {
+        frontend_ip_configuration_name = "private"
+        frontend_port_name             = "http"
+        protocol                       = "Http"
+        host_name                      = "app.company.af"
+        require_sni                    = false
+        backend_http_settings = {
+          main = {
+            port     = 8080
+            protocol = "Https"
+            probe = {
+              path     = "/health"
+              host     = "africa-blue.internal"
+              interval = 30
+              timeout  = 30
+              match = {
+                body        = null
+                status_code = ["200-399"]
+              }
+            }
+          }
+        }
+        backend_address_pools = {
+          blue = {
+            fqdns = ["af-blue.internal"]
+          }
+          green = {
+            fqdns = ["af-green.internal"]
+          }
+        }
+        routing_rule = {
+          rule_type = "PathBasedRouting"
+          priority  = 140
           url_path_map = {
-            default_pool     = "blue"
-            default_settings = "main"
-            #default_rewrite_rule_set_name = "headers"
+            default_redirect_configuration_name = "to_url"
+            default_rewrite_rule_set_name       = "headers_blue"
             path_rules = {
               api = {
-                paths                 = ["/api/*"]
-                pool                  = "green"
-                settings              = "main"
-                rewrite_rule_set_name = "headers2"
+                paths                       = ["/api/*"]
+                redirect_configuration_name = "to_global"
+                rewrite_rule_set_name       = "headers_green"
               }
             }
           }

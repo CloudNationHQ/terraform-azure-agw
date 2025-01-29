@@ -1,31 +1,26 @@
 locals {
-  webapp = {
+  api = {
     listeners = {
-      webapp = {
-        name                           = "webapp-listener"
+      api = {
+        name                           = "api-listener"
         frontend_ip_configuration_name = "feip-prod-westus-001"
         frontend_port_name             = "fep-prod-westus-001"
         protocol                       = "Https"
-        host_name                      = "webapp.company.com"
+        host_name                      = "api.company.com"
         require_sni                    = false
         certificate = {
-          name                = "webapp-cert"
-          key_vault_secret_id = module.kv.certs.webapp.secret_id
-        }
-        backend_address_pools = {
-          primary = {
-            fqdns = ["app.internal"]
-          }
+          name                = "api-cert"
+          key_vault_secret_id = module.kv.certs.api.secret_id
         }
         backend_http_settings = {
           main = {
             port      = 8080
             protocol  = "Https"
-            host_name = "app.internal"
+            host_name = "api.internal"
             probe = {
               protocol = "Https"
               path     = "/health"
-              host     = "app.internal"
+              host     = "api.internal"
               interval = 30
               timeout  = 30
               match = {
@@ -35,10 +30,15 @@ locals {
             }
           }
         }
+        backend_address_pools = {
+          api = {
+            fqdns = ["api.internal"]
+          }
+        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
-          backend_address_pool_name  = "primary"
+          backend_address_pool_name  = "api"
           backend_http_settings_name = "main"
         }
       }

@@ -42,7 +42,7 @@ module "network" {
 
 module "kv" {
   source  = "cloudnationhq/kv/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
   naming  = local.naming
   vault = {
     name           = module.naming.key_vault.name_unique
@@ -68,8 +68,9 @@ module "public_ip" {
 }
 
 module "application_gateway" {
-  source  = "cloudnationhq/agw/azure"
-  version = "~> 1.0"
+  # source  = "cloudnationhq/agw/azure"
+  # version = "~> 1.0"
+  source = "../../"
 
   resource_group = module.rg.groups.demo.name
   location       = module.rg.groups.demo.location
@@ -84,6 +85,10 @@ module "application_gateway" {
       name     = "Standard_v2"
       tier     = "Standard_v2"
       capacity = 2
+    }
+
+    identity = {
+      type = "UserAssigned"
     }
 
     gateway_ip_configurations = {
@@ -110,5 +115,7 @@ module "application_gateway" {
     applications = {
       website = local.website
     }
+
+    redirect_configurations = local.redirect_configurations
   }
 }
