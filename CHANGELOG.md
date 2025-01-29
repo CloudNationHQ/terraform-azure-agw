@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.1.0...v1.2.0) (2025-01-29)
+
+
+### Features
+
+* updated identity(optional), ssl_cert (optional) ([#19](https://github.com/CloudNationHQ/terraform-azure-agw/issues/19)) ([4fd04fe](https://github.com/CloudNationHQ/terraform-azure-agw/commit/4fd04feb767777cfee2f1df2aed4377c41bc34e1))
+
 ## [1.1.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.0.0...v1.1.0) (2025-01-29)
 
 
