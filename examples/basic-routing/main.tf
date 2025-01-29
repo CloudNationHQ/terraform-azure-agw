@@ -112,9 +112,7 @@ module "application_gateway" {
     }
 
     applications = {
-      website = local.website
+      api = local.api
     }
-
-    redirect_configurations = local.redirect_configurations
   }
 }

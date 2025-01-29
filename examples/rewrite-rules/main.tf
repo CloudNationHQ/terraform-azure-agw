@@ -42,7 +42,7 @@ module "network" {
 
 module "kv" {
   source  = "cloudnationhq/kv/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
   naming  = local.naming
   vault = {
     name           = module.naming.key_vault.name_unique
@@ -86,6 +86,10 @@ module "application_gateway" {
       capacity = 2
     }
 
+    identity = {
+      type = "UserAssigned"
+    }
+
     gateway_ip_configurations = {
       main = {
         name      = "gateway-ip-configuration"
@@ -110,5 +114,7 @@ module "application_gateway" {
     applications = {
       portal = local.portal
     }
+
+    rewrite_rule_sets = local.rewrite_rule_sets
   }
 }

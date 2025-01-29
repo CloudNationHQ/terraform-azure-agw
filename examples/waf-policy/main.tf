@@ -42,7 +42,7 @@ module "network" {
 
 module "kv" {
   source  = "cloudnationhq/kv/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
   naming  = local.naming
   vault = {
     name           = module.naming.key_vault.name_unique
@@ -133,6 +133,10 @@ module "application_gateway" {
       name     = "WAF_v2"
       tier     = "WAF_v2"
       capacity = 2
+    }
+
+    identity = {
+      type = "UserAssigned"
     }
 
     gateway_ip_configurations = {
