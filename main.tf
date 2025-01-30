@@ -23,11 +23,38 @@ resource "azurerm_application_gateway" "application_gateway" {
     }
   }
 
+  dynamic "global" {
+    for_each = try(var.config.global, null) != null ? { default = var.config.global } : {}
+    content {
+      request_buffering_enabled  = global.value.request_buffering_enabled
+      response_buffering_enabled = global.value.response_buffering_enabled
+    }
+  }
+
   dynamic "gateway_ip_configuration" {
     for_each = var.config.gateway_ip_configurations
     content {
       name      = gateway_ip_configuration.value.name
       subnet_id = gateway_ip_configuration.value.subnet_id
+    }
+  }
+
+  # Please Note: The AllowApplicationGatewayPrivateLink feature must be registered on the subscription before enabling private link
+  dynamic "private_link_configuration" {
+    for_each = { for key, plc in try(var.config.private_link_configuration, {}) : key => plc }
+    content {
+      name = try(private_link_configuration.value.name, private_link_configuration.key)
+      dynamic "ip_configuration" {
+        for_each = { for key, ipc in try(private_link_configuration.value.ip_configurations, {}) : key => ipc }
+
+        content {
+          name                          = try(ip_configuration.value.name, ip_configuration.key)
+          subnet_id                     = ip_configuration.value.subnet_id
+          primary                       = try(ip_configuration.value.primary, false)
+          private_ip_address            = try(ip_configuration.value.private_ip_address, null)
+          private_ip_address_allocation = try(ip_configuration.value.private_ip_address_allocation, "Dynamic")
+        }
+      }
     }
   }
 
@@ -50,8 +77,6 @@ resource "azurerm_application_gateway" "application_gateway" {
       port = frontend_port.value.port
     }
   }
-
-
 
   dynamic "ssl_certificate" {
     for_each = distinct(flatten([
@@ -91,7 +116,7 @@ resource "azurerm_application_gateway" "application_gateway" {
           rule_sequence = rewrite_rule.value.rule_sequence
 
           dynamic "condition" {
-            for_each = rewrite_rule.value.conditions
+            for_each = try(rewrite_rule.value.conditions, {})
 
             content {
               variable    = condition.value.variable
@@ -177,6 +202,22 @@ resource "azurerm_application_gateway" "application_gateway" {
       pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
       affinity_cookie_name                = backend_http_settings.value.affinity_cookie_name
       trusted_root_certificate_names      = backend_http_settings.value.trusted_root_certificate_names
+
+      dynamic "connection_draining" {
+        for_each = lookup(backend_http_settings.value, "connection_draining", null) != null ? { cd = backend_http_settings.value.connection_draining } : {}
+
+        content {
+          enabled           = connection_draining.value.enabled
+          drain_timeout_sec = connection_draining.value.drain_timeout_sec
+        }
+      }
+
+      dynamic "authentication_certificate" {
+        for_each = lookup(backend_http_settings.value, "authentication_certificate", {})
+        content {
+          name = authentication_certificate.value.name
+        }
+      }
     }
   }
 
@@ -185,8 +226,7 @@ resource "azurerm_application_gateway" "application_gateway" {
       for app_key, app in var.config.applications : [
         for listener_key, listener in app.listeners : [
           for setting_key, setting in try(listener.backend_http_settings, {}) :
-          # Only include settings with probes
-          try(setting.probe != null, false) ? {
+          {
             name                                      = try(setting.probe.name, replace("prb-${app_key}-${listener_key}-${setting_key}", "_", "-"))
             protocol                                  = try(setting.probe.protocol, setting.protocol)
             path                                      = setting.probe.path
@@ -199,7 +239,7 @@ resource "azurerm_application_gateway" "application_gateway" {
             minimum_servers                           = try(setting.probe.minimum_servers, null)
             pick_host_name_from_backend_http_settings = try(setting.probe.pick_host_name_from_backend_http_settings, false)
             unhealthy_threshold                       = try(setting.probe.unhealthy_threshold, 3)
-          } : null
+          } if try(setting.probe, null) != null
         ]
       ]
     ])
@@ -271,8 +311,8 @@ resource "azurerm_application_gateway" "application_gateway" {
         try(listener.routing_rule.rule_type, null) == "PathBasedRouting" ? {
           "${app_key}-${listener_key}" = {
             name             = try(listener.routing_rule.url_path_map.name, replace("upm-${app_key}-${listener_key}", "_", "-"))
-            backend_pools    = listener.backend_address_pools
-            backend_settings = listener.backend_http_settings
+            backend_pools    = try(listener.backend_address_pools, {})
+            backend_settings = try(listener.backend_http_settings, {})
             path_rules       = listener.routing_rule.url_path_map.path_rules
             app_key          = app_key
             listener_key     = listener_key
@@ -351,7 +391,7 @@ resource "azurerm_application_gateway" "application_gateway" {
           ), redirect.target_listener) ? replace("lstn-${app_key}-${redirect.target_listener}", "_", "-") : redirect.target_listener : null
           target_url           = try(redirect.target_url, null)
           include_path         = try(redirect.include_path, false)
-          include_query_string = try(redirect.include_query, false)
+          include_query_string = try(redirect.include_query_string, false)
         }
       ]
       ]
@@ -424,6 +464,99 @@ resource "azurerm_application_gateway" "application_gateway" {
       cipher_suites        = try(ssl_policy.value.cipher_suites, null)
       disabled_protocols   = try(ssl_policy.value.disabled_protocols, null)
       min_protocol_version = try(ssl_policy.value.min_protocol_version, "TLSv1_2")
+    }
+  }
+
+  dynamic "ssl_profile" {
+    for_each = lookup(var.config, "ssl_profile", {})
+
+    content {
+      name                                 = ssl_profile.value.name
+      trusted_client_certificate_names     = ssl_profile.value.trusted_client_certificate_names
+      verify_client_cert_issuer_dn         = try(ssl_profile.value.verify_client_cert_issuer_dn, false)
+      verify_client_certificate_revocation = try(ssl_profile.value.verify_client_certificate_revocation, null)
+
+      dynamic "ssl_policy" {
+        for_each = try(ssl_profile.value.ssl_policy, {}) != null ? { key = ssl_profile.value.ssl_policy } : {}
+        content {
+          policy_type          = try(ssl_policy.value.policy_type, "Predefined")
+          policy_name          = try(ssl_policy.value.policy_name, null)
+          cipher_suites        = try(ssl_policy.value.cipher_suites, null)
+          disabled_protocols   = try(ssl_policy.value.disabled_protocols, null)
+          min_protocol_version = try(ssl_policy.value.min_protocol_version, "TLSv1_2")
+        }
+      }
+    }
+  }
+
+  dynamic "waf_configuration" {
+    for_each = lookup(var.config, "waf_configuration", null) != null ? { waf = var.config.waf_configuration } : {}
+
+    content {
+      enabled                  = try(waf_configuration.value.enabled, true)
+      firewall_mode            = try(waf_configuration.value.firewall_mode, "Prevention")
+      rule_set_type            = try(waf_configuration.value.rule_set_type, "OWASP")
+      rule_set_version         = try(waf_configuration.value.rule_set_version, "3.2")
+      file_upload_limit_mb     = try(waf_configuration.value.file_upload_limit_mb, 100)
+      max_request_body_size_kb = try(waf_configuration.value.max_request_body_size_kb, 128)
+      request_body_check       = try(waf_configuration.value.request_body_check, true)
+
+      dynamic "disabled_rule_group" {
+        for_each = try(waf_configuration.value.disabled_rule_groups, {})
+
+        content {
+          rule_group_name = disabled_rule_group.value.rule_group_name
+          rules           = try(disabled_rule_group.value.rules, [])
+        }
+      }
+
+      dynamic "exclusion" {
+        for_each = try(waf_configuration.value.exclusion, {})
+
+        content {
+          match_variable          = exclusion.value.match_variable
+          selector_match_operator = try(exclusion.value.selector_match_operator, null)
+          selector                = try(exclusion.value.selector, null)
+        }
+
+      }
+    }
+  }
+
+  dynamic "custom_error_configuration" {
+    for_each = lookup(var.config, "custom_error_configuration", {})
+
+    content {
+      custom_error_page_url = custom_error_configuration.value.custom_error_page_url
+      status_code           = custom_error_configuration.value.status_code
+    }
+  }
+
+  dynamic "authentication_certificate" {
+    for_each = lookup(var.config, "authentication_certificate", {})
+
+    content {
+      name = authentication_certificate.value.name
+      data = authentication_certificate.value.data
+    }
+  }
+
+  dynamic "trusted_root_certificate" {
+    for_each = lookup(var.config, "trusted_root_certificate", {})
+
+    content {
+      name                = trusted_root_certificate.value.name
+      data                = try(trusted_root_certificate.value.data, null)
+      key_vault_secret_id = try(trusted_root_certificate.value.key_vault_secret_id, null)
+    }
+  }
+
+  dynamic "trusted_client_certificate" {
+    for_each = lookup(var.config, "trusted_client_certificate", {})
+
+    content {
+      name = trusted_client_certificate.value.name
+      data = trusted_client_certificate.value.data
     }
   }
 
