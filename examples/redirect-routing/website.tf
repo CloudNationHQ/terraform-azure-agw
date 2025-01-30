@@ -1,10 +1,10 @@
 locals {
   redirect_configurations = {
     to_main = {
-      target_listener = "main" # or target_url = "https://example.com"
-      redirect_type   = "Permanent"
-      include_path    = true
-      include_query   = true
+      target_listener      = "main" # or target_url = "https://example.com"
+      redirect_type        = "Permanent"
+      include_path         = true
+      include_query_string = true
     }
   }
   website = {
