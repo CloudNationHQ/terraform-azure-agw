@@ -272,7 +272,7 @@ resource "azurerm_application_gateway" "application_gateway" {
         for fip_key, fip in var.config : [
           for listener_key, listener in app.listeners : {
             name = try(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
-            ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map, 
+            ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
             ## if so then that key is derived for naming, if not then the property name is the actual name used for naming
             frontend_ip_configuration_name = contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name
             ) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name
@@ -591,10 +591,10 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
     for assoc in flatten([
       for app_key, app in var.config.applications : [
         for listener_key, listener in app.listeners : [
-          for pool_key, pool in try(listener.backend_address_pools, {}) : [
-            for vm_key, vm in try(pool.vm_associations, {}) : {
+          for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
+            for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
               key                   = "${app_key}-${listener_key}-${pool_key}-${vm_key}"
-              pool_name             = "${app_key}-${listener_key}-${pool_key}"
+              pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
               network_interface_id  = vm.network_interface_id
               ip_configuration_name = vm.ip_configuration_name
             }
