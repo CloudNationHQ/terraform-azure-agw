@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.2.0...v1.3.0) (2025-02-12)
+
+
+### Features
+
+* add network interface backend pool association support ([#26](https://github.com/CloudNationHQ/terraform-azure-agw/issues/26)) ([2fdcbe9](https://github.com/CloudNationHQ/terraform-azure-agw/commit/2fdcbe9279ab98c9f8ef94ce75e3360f400bad8d))
+* **deps:** bump github.com/gruntwork-io/terratest in /tests ([#25](https://github.com/CloudNationHQ/terraform-azure-agw/issues/25)) ([d32089e](https://github.com/CloudNationHQ/terraform-azure-agw/commit/d32089e0a5916051c4100fa594ba6c48fad51afe))
+
+
+### Bug Fixes
+
+* make backend_settings,probe and backend_pools fully optional, add missing properties ([#22](https://github.com/CloudNationHQ/terraform-azure-agw/issues/22)) ([9889f84](https://github.com/CloudNationHQ/terraform-azure-agw/commit/9889f849ff02cfce66fbff2920744a31f987c4c0))
+
 ## [1.2.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.1.0...v1.2.0) (2025-01-29)
 
 
