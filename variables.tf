@@ -1,11 +1,6 @@
 variable "config" {
   description = "contains application gateway configuration"
-}
-
-variable "naming" {
-  description = "contains naming convention"
-  type        = map(string)
-  default     = {}
+  type        = any
 }
 
 variable "location" {
