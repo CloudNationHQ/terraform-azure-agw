@@ -14,24 +14,6 @@ locals {
           key_vault_secret_id = module.kv.certs.mobile.secret_id
         }
 
-        backend_http_settings = {
-          main = {
-            port      = 443
-            protocol  = "Https"
-            host_name = "mobile.internal"
-            probe = {
-              protocol = "Https"
-              path     = "/health"
-              host     = "mobile.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
-
         backend_address_pools = {
           mobile = {
             name  = "bap-mobile"
@@ -54,6 +36,24 @@ locals {
           priority                   = 100
           backend_address_pool_name  = "bap-mobile"
           backend_http_settings_name = "main"
+        }
+      }
+    }
+
+    backend_http_settings = {
+      main = {
+        port      = 443
+        protocol  = "Https"
+        host_name = "mobile.internal"
+        probe = {
+          protocol = "Https"
+          path     = "/health"
+          host     = "mobile.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            status_code = ["200-399"]
+          }
         }
       }
     }

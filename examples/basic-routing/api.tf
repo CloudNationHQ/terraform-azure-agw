@@ -12,24 +12,6 @@ locals {
           name                = "api-cert"
           key_vault_secret_id = module.kv.certs.api.secret_id
         }
-        backend_http_settings = {
-          main = {
-            port      = 8080
-            protocol  = "Https"
-            host_name = "api.internal"
-            probe = {
-              protocol = "Https"
-              path     = "/health"
-              host     = "api.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         backend_address_pools = {
           api = {
             fqdns = ["api.internal"]
@@ -40,6 +22,24 @@ locals {
           priority                   = 100
           backend_address_pool_name  = "api"
           backend_http_settings_name = "main"
+        }
+      }
+    }
+    backend_http_settings = {
+      main = {
+        port      = 8080
+        protocol  = "Https"
+        host_name = "api.internal"
+        probe = {
+          protocol = "Https"
+          path     = "/health"
+          host     = "api.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            body        = null
+            status_code = ["200-399"]
+          }
         }
       }
     }

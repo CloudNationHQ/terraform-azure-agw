@@ -192,23 +192,6 @@ locals {
             fqdns = ["portal-blue.internal"]
           }
         }
-        backend_http_settings = {
-          main = {
-            port      = 8080
-            protocol  = "Https"
-            host_name = "portal-blue.internal"
-            probe = {
-              path     = "/health"
-              host     = "portal-blue.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         routing_rule = {
           rule_type             = "PathBasedRouting"
           priority              = 100
@@ -225,6 +208,23 @@ locals {
                 rewrite_rule_set_name      = "api"
               }
             }
+          }
+        }
+      }
+    }
+    backend_http_settings = {
+      main = {
+        port      = 8080
+        protocol  = "Https"
+        host_name = "portal-blue.internal"
+        probe = {
+          path     = "/health"
+          host     = "portal-blue.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            body        = null
+            status_code = ["200-399"]
           }
         }
       }
