@@ -84,12 +84,14 @@ resource "azurerm_application_gateway" "application_gateway" {
         for listener_key, listener in app.listeners :
         {
           name                = listener.certificate.name
-          key_vault_secret_id = listener.certificate.key_vault_secret_id
+          key_vault_secret_id = try(listener.certificate.key_vault_secret_id, null)
+          data                = try(listener.certificate.data, null)
+          password            = try(listener.certificate.password, null)
     } if try(listener.certificate, null) != null]]))
 
     content {
       name                = ssl_certificate.value.name
-      key_vault_secret_id = ssl_certificate.value.key_vault_secret_id
+      key_vault_secret_id = try(ssl_certificate.value.key_vault_secret_id, null)
       data                = try(ssl_certificate.value.data, null)
       password            = try(ssl_certificate.value.password, null)
     }
