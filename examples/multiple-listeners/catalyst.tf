@@ -11,37 +11,6 @@ locals {
           name                = "global-cert"
           key_vault_secret_id = module.kv.certs.global.secret_id
         }
-        backend_http_settings = {
-          blue = {
-            port      = 8080
-            protocol  = "Https"
-            host_name = "blue.internal"
-            probe = {
-              path     = "/health"
-              host     = "blue.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-          green = {
-            port      = 8080
-            protocol  = "Https"
-            host_name = "green.internal"
-            probe = {
-              path     = "/health"
-              host     = "green.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         backend_address_pools = {
           blue = {
             fqdns = ["blue.internal"]
@@ -80,22 +49,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.eu"
         require_sni                    = false
-        backend_http_settings = {
-          main = {
-            port     = 8080
-            protocol = "Https"
-            probe = {
-              path     = "/health"
-              host     = "eu-blue.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         backend_address_pools = {
           blue = {
             fqdns = ["eu-blue.internal"]
@@ -128,22 +81,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.us"
         require_sni                    = false
-        backend_http_settings = {
-          main = {
-            port     = 8080
-            protocol = "Https"
-            probe = {
-              path     = "/health"
-              host     = "asia-blue.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         backend_address_pools = {
           blue = {
             fqdns = ["us-blue.internal"]
@@ -165,22 +102,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.as"
         require_sni                    = false
-        backend_http_settings = {
-          main = {
-            port     = 8080
-            protocol = "Https"
-            probe = {
-              path     = "/health"
-              host     = "asia-blue.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         backend_address_pools = {
           blue = {
             fqdns = ["as-blue.internal"]
@@ -201,22 +122,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.af"
         require_sni                    = false
-        backend_http_settings = {
-          main = {
-            port     = 8080
-            protocol = "Https"
-            probe = {
-              path     = "/health"
-              host     = "africa-blue.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         backend_address_pools = {
           blue = {
             fqdns = ["af-blue.internal"]
@@ -238,6 +143,51 @@ locals {
                 rewrite_rule_set_name       = "headers_green"
               }
             }
+          }
+        }
+      }
+    }
+    backend_http_settings = {
+      blue = {
+        port      = 8080
+        protocol  = "Https"
+        host_name = "blue.internal"
+        probe = {
+          path     = "/health"
+          host     = "blue.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            body        = null
+            status_code = ["200-399"]
+          }
+        }
+      }
+      green = {
+        port      = 8080
+        protocol  = "Https"
+        host_name = "green.internal"
+        probe = {
+          path     = "/health"
+          host     = "green.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            status_code = ["200-399"]
+          }
+        }
+      }
+      main = {
+        port     = 8080
+        protocol = "Https"
+        probe = {
+          path     = "/health"
+          host     = "eu-blue.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            body        = null
+            status_code = ["200-399"]
           }
         }
       }

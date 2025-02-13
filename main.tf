@@ -173,21 +173,19 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "backend_http_settings" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
-          for setting_key, setting in try(listener.backend_http_settings, {}) : {
-            name                                = try(setting.name, replace("bhs-${app_key}-${listener_key}-${setting_key}", "_", "-"))
-            port                                = setting.port
-            protocol                            = setting.protocol
-            host_name                           = try(setting.host_name, null)
-            cookie_based_affinity               = try(setting.cookie_based_affinity, "Disabled")
-            request_timeout                     = try(setting.request_timeout, 30)
-            probe_name                          = try(setting.probe != null, false) ? try(setting.probe.name, "prb-${app_key}-${listener_key}-${setting_key}") : null
-            path                                = try(setting.path, "/")
-            pick_host_name_from_backend_address = try(setting.pick_host_name_from_backend_address, false)
-            affinity_cookie_name                = try(setting.affinity_cookie_name, null)
-            trusted_root_certificate_names      = try(setting.trusted_root_certificate_names, [])
-          }
-        ]
+        for setting_key, setting in try(app.backend_http_settings, {}) : {
+          name                                = try(setting.name, replace("bhs-${app_key}-${setting_key}", "_", "-"))
+          port                                = setting.port
+          protocol                            = setting.protocol
+          host_name                           = try(setting.host_name, null)
+          cookie_based_affinity               = try(setting.cookie_based_affinity, "Disabled")
+          request_timeout                     = try(setting.request_timeout, 30)
+          probe_name                          = try(setting.probe != null, false) ? try(setting.probe.name, "prb-${app_key}-${setting_key}") : null
+          path                                = try(setting.path, "/")
+          pick_host_name_from_backend_address = try(setting.pick_host_name_from_backend_address, false)
+          affinity_cookie_name                = try(setting.affinity_cookie_name, null)
+          trusted_root_certificate_names      = try(setting.trusted_root_certificate_names, [])
+        }
       ]
     ])
     content {
@@ -224,25 +222,24 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "probe" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
-          for setting_key, setting in try(listener.backend_http_settings, {}) :
-          {
-            name                                      = try(setting.probe.name, replace("prb-${app_key}-${listener_key}-${setting_key}", "_", "-"))
-            protocol                                  = try(setting.probe.protocol, setting.protocol)
-            path                                      = setting.probe.path
-            host                                      = setting.probe.host
-            interval                                  = setting.probe.interval
-            timeout                                   = setting.probe.timeout
-            match_status_codes                        = try(setting.probe.match.status_code, null)
-            match_body                                = try(setting.probe.match.body, null)
-            port                                      = try(setting.probe.port, null)
-            minimum_servers                           = try(setting.probe.minimum_servers, null)
-            pick_host_name_from_backend_http_settings = try(setting.probe.pick_host_name_from_backend_http_settings, false)
-            unhealthy_threshold                       = try(setting.probe.unhealthy_threshold, 3)
-          } if try(setting.probe, null) != null
-        ]
+        for setting_key, setting in try(app.backend_http_settings, {}) :
+        {
+          name                                      = try(setting.probe.name, replace("prb-${app_key}-${setting_key}", "_", "-"))
+          protocol                                  = try(setting.probe.protocol, setting.protocol)
+          path                                      = setting.probe.path
+          host                                      = setting.probe.host
+          interval                                  = setting.probe.interval
+          timeout                                   = setting.probe.timeout
+          match_status_codes                        = try(setting.probe.match.status_code, null)
+          match_body                                = try(setting.probe.match.body, null)
+          port                                      = try(setting.probe.port, null)
+          minimum_servers                           = try(setting.probe.minimum_servers, null)
+          pick_host_name_from_backend_http_settings = try(setting.probe.pick_host_name_from_backend_http_settings, false)
+          unhealthy_threshold                       = try(setting.probe.unhealthy_threshold, 3)
+        } if try(setting.probe, null) != null
       ]
-    ])
+      ]
+    )
 
     content {
       name                                      = probe.value.name
@@ -312,7 +309,7 @@ resource "azurerm_application_gateway" "application_gateway" {
           "${app_key}-${listener_key}" = {
             name             = try(listener.routing_rule.url_path_map.name, replace("upm-${app_key}-${listener_key}", "_", "-"))
             backend_pools    = try(listener.backend_address_pools, {})
-            backend_settings = try(listener.backend_http_settings, {})
+            backend_settings = try(app.backend_http_settings, {})
             path_rules       = listener.routing_rule.url_path_map.path_rules
             app_key          = app_key
             listener_key     = listener_key
@@ -323,8 +320,8 @@ resource "azurerm_application_gateway" "application_gateway" {
             ) : listener.routing_rule.url_path_map.default_backend_address_pool_name : null
 
             default_backend_http_settings_name = try(listener.routing_rule.url_path_map.default_backend_http_settings_name, null) != null ? contains(
-              keys(listener.backend_http_settings), listener.routing_rule.url_path_map.default_backend_http_settings_name) ? replace(
-              "bhs-${app_key}-${listener_key}-${listener.routing_rule.url_path_map.default_backend_http_settings_name}", "_", "-"
+              keys(app.backend_http_settings), listener.routing_rule.url_path_map.default_backend_http_settings_name) ? replace(
+              "bhs-${app_key}-${listener.routing_rule.url_path_map.default_backend_http_settings_name}", "_", "-"
             ) : listener.routing_rule.url_path_map.default_backend_http_settings_name : null
 
             default_rewrite_rule_set_name = try(listener.routing_rule.url_path_map.default_rewrite_rule_set_name, null) != null ? contains(
@@ -360,7 +357,7 @@ resource "azurerm_application_gateway" "application_gateway" {
 
           backend_http_settings_name = try(path_rule.value.backend_http_settings_name, null) != null ? contains(
             keys(url_path_map.value.backend_settings), path_rule.value.backend_http_settings_name) ? replace(
-            "bhs-${url_path_map.value.app_key}-${url_path_map.value.listener_key}-${path_rule.value.backend_http_settings_name}", "_", "-"
+            "bhs-${url_path_map.value.app_key}-${path_rule.value.backend_http_settings_name}", "_", "-"
           ) : path_rule.value.backend_http_settings_name : null
 
           rewrite_rule_set_name = try(path_rule.value.rewrite_rule_set_name, null) != null ? contains(
@@ -419,8 +416,8 @@ resource "azurerm_application_gateway" "application_gateway" {
             backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(listener.backend_address_pools
             ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
 
-            backend_http_settings_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_http_settings_name, null) != null) ? contains(keys(listener.backend_http_settings
-            ), listener.routing_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${listener_key}-${listener.routing_rule.backend_http_settings_name}", "_", "-") : listener.routing_rule.backend_http_settings_name : null
+            backend_http_settings_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_http_settings_name, null) != null) ? contains(keys(app.backend_http_settings
+            ), listener.routing_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${listener.routing_rule.backend_http_settings_name}", "_", "-") : listener.routing_rule.backend_http_settings_name : null
 
             url_path_map_name = listener.routing_rule.rule_type == "PathBasedRouting" ? try(listener.routing_rule.url_path_map.name, replace("upm-${app_key}-${listener_key}", "_", "-")) : null
 
