@@ -17,29 +17,29 @@ locals {
             fqdns = ["app.internal"]
           }
         }
-        backend_http_settings = {
-          main = {
-            port      = 8080
-            protocol  = "Https"
-            host_name = "app.internal"
-            probe = {
-              protocol = "Https"
-              path     = "/health"
-              host     = "app.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
           backend_address_pool_name  = "primary"
           backend_http_settings_name = "main"
+        }
+      }
+    }
+    backend_http_settings = {
+      main = {
+        port      = 8080
+        protocol  = "Https"
+        host_name = "app.internal"
+        probe = {
+          protocol = "Https"
+          path     = "/health"
+          host     = "app.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            body        = null
+            status_code = ["200-399"]
+          }
         }
       }
     }

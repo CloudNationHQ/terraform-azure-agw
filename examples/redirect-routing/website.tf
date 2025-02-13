@@ -25,24 +25,6 @@ locals {
 
           }
         }
-        backend_http_settings = {
-          main = {
-            port      = 443
-            protocol  = "Https"
-            host_name = "app.internal"
-            probe = {
-              protocol = "Https"
-              path     = "/health"
-              host     = "app.internal"
-              interval = 30
-              timeout  = 30
-              match = {
-                body        = null
-                status_code = ["200-399"]
-              }
-            }
-          }
-        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
@@ -64,6 +46,24 @@ locals {
           rule_type                   = "Basic"
           priority                    = 200
           redirect_configuration_name = "to_main"
+        }
+      }
+    }
+    backend_http_settings = {
+      main = {
+        port      = 443
+        protocol  = "Https"
+        host_name = "app.internal"
+        probe = {
+          protocol = "Https"
+          path     = "/health"
+          host     = "app.internal"
+          interval = 30
+          timeout  = 30
+          match = {
+            body        = null
+            status_code = ["200-399"]
+          }
         }
       }
     }

@@ -30,11 +30,10 @@ locals {
     vm2 = {
       name         = "vm2"
       type         = "windows"
-      size         = "Standard_D4ds_v5"
+      size         = "Standard_D2ds_v5"
       timezone     = "W. Europe Standard Time"
       license_type = "Windows_Server"
       username     = "local-admin"
-      zone         = "1"
       password     = module.kv.secrets.vm2.value
       interfaces = {
         int1 = {
