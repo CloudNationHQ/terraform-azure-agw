@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.3.2...v1.3.3) (2025-02-18)
+
+
+### Bug Fixes
+
+* remove redundant fqdns property ([#31](https://github.com/CloudNationHQ/terraform-azure-agw/issues/31)) ([4da048f](https://github.com/CloudNationHQ/terraform-azure-agw/commit/4da048f3e9ac5acf7b378a561a0886973ce5820c))
+
 ## [1.3.2](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.3.1...v1.3.2) (2025-02-18)
 
 
