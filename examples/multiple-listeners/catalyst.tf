@@ -153,10 +153,10 @@ locals {
         protocol  = "Https"
         host_name = "blue.internal"
         probe = {
-          path     = "/health"
-          host     = "blue.internal"
-          interval = 30
-          timeout  = 30
+          path                                      = "/health"
+          pick_host_name_from_backend_http_settings = true
+          interval                                  = 30
+          timeout                                   = 30
           match = {
             body        = null
             status_code = ["200-399"]
@@ -168,23 +168,24 @@ locals {
         protocol  = "Https"
         host_name = "green.internal"
         probe = {
-          path     = "/health"
-          host     = "green.internal"
-          interval = 30
-          timeout  = 30
+          path                                      = "/health"
+          pick_host_name_from_backend_http_settings = true
+          interval                                  = 30
+          timeout                                   = 30
           match = {
             status_code = ["200-399"]
           }
         }
       }
       main = {
-        port     = 8080
-        protocol = "Https"
+        port      = 8080
+        protocol  = "Https"
+        host_name = "eu-blue.internal"
         probe = {
-          path     = "/health"
-          host     = "eu-blue.internal"
-          interval = 30
-          timeout  = 30
+          path                                      = "/health"
+          pick_host_name_from_backend_http_settings = true
+          interval                                  = 30
+          timeout                                   = 30
           match = {
             body        = null
             status_code = ["200-399"]

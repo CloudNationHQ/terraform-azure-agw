@@ -174,11 +174,11 @@ locals {
         protocol  = "Https"
         host_name = "blue.internal"
         probe = {
-          name     = "probe-${module.naming.application_gateway.name}-global-blue"
-          path     = "/health"
-          host     = "blue.internal"
-          interval = 30
-          timeout  = 30
+          name                                      = "probe-${module.naming.application_gateway.name}-global-blue"
+          path                                      = "/health"
+          pick_host_name_from_backend_http_settings = true
+          interval                                  = 30
+          timeout                                   = 30
           match = {
             body        = null
             status_code = ["200-399"]
@@ -191,26 +191,27 @@ locals {
         protocol  = "Https"
         host_name = "green.internal"
         probe = {
-          name     = "probe-${module.naming.application_gateway.name}-global-green"
-          path     = "/health"
-          host     = "green.internal"
-          interval = 30
-          timeout  = 30
+          name                                      = "probe-${module.naming.application_gateway.name}-global-green"
+          path                                      = "/health"
+          pick_host_name_from_backend_http_settings = true
+          interval                                  = 30
+          timeout                                   = 30
           match = {
             status_code = ["200-399"]
           }
         }
       }
       main = {
-        name     = "settings-${module.naming.application_gateway.name}-main"
-        port     = 8080
-        protocol = "Https"
+        name      = "settings-${module.naming.application_gateway.name}-main"
+        port      = 8080
+        protocol  = "Https"
+        host_name = "main.internal"
         probe = {
-          name     = "probe-${module.naming.application_gateway.name}-main"
-          path     = "/health"
-          host     = "main.internal"
-          interval = 30
-          timeout  = 30
+          name                                      = "probe-${module.naming.application_gateway.name}-main"
+          path                                      = "/health"
+          pick_host_name_from_backend_http_settings = true
+          interval                                  = 30
+          timeout                                   = 30
           match = {
             body        = null
             status_code = ["200-399"]
