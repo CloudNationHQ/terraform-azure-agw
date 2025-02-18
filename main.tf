@@ -594,7 +594,7 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
         for listener_key, listener in app.listeners : [
           for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
             for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
-              key                   = "${app_key}-${listener_key}-${pool_key}-${vm_key}" #FIX: needs to be adjusted to only pool and vm key
+              key                   = "${pool_key}-${vm_key}"
               pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
               network_interface_id  = vm.network_interface_id
               ip_configuration_name = vm.ip_configuration_name
