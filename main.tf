@@ -281,26 +281,25 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "http_listener" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for fip_key, fip in var.config : [
-          for listener_key, listener in app.listeners : {
-            name = try(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
-            ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
-            ## if so then that key is derived for naming, if not then the property name is the actual name used for naming
-            frontend_ip_configuration_name = contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name
-            ) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name
-            frontend_port_name = contains(keys(var.config.frontend_ports), listener.frontend_port_name
-            ) ? replace("fp-${listener.frontend_port_name}", "_", "-") : listener.frontend_port_name
-            protocol             = listener.protocol
-            host_name            = try(listener.host_name, null)
-            require_sni          = try(listener.require_sni, false)
-            ssl_certificate_name = try(listener.certificate.name, null)
-            host_names           = try(listener.host_names, [])
-            ssl_profile_name     = try(listener.ssl_profile_name, null)
-            firewall_policy_id   = try(listener.firewall_policy_id, null)
-            custom_errors        = try(listener.custom_error_configuration, [])
-          }
+        for listener_key, listener in app.listeners : {
+          name = try(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
+          ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
+          ## if so then that key is derived for naming, if not then the property name is the actual name used for naming
+          frontend_ip_configuration_name = contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name
+          ) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name
+          frontend_port_name = contains(keys(var.config.frontend_ports), listener.frontend_port_name
+          ) ? replace("fp-${listener.frontend_port_name}", "_", "-") : listener.frontend_port_name
+          protocol             = listener.protocol
+          host_name            = try(listener.host_name, null)
+          require_sni          = try(listener.require_sni, false)
+          ssl_certificate_name = try(listener.certificate.name, null)
+          host_names           = try(listener.host_names, [])
+          ssl_profile_name     = try(listener.ssl_profile_name, null)
+          firewall_policy_id   = try(listener.firewall_policy_id, null)
+          custom_errors        = try(listener.custom_error_configuration, [])
+        }
       ]]
-    ])
+    )
     content {
       name                           = http_listener.value.name
       frontend_ip_configuration_name = http_listener.value.frontend_ip_configuration_name
