@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.3.3...v1.4.0) (2025-02-18)
+
+
+### Features
+
+* add some missing properties ([#33](https://github.com/CloudNationHQ/terraform-azure-agw/issues/33)) ([ebe3e7b](https://github.com/CloudNationHQ/terraform-azure-agw/commit/ebe3e7b48b61c7a06bf07862703fbca35667d9db))
+
+
+### Bug Fixes
+
+* remove redundant loop listeners ([#34](https://github.com/CloudNationHQ/terraform-azure-agw/issues/34)) ([ef89a74](https://github.com/CloudNationHQ/terraform-azure-agw/commit/ef89a746d7ad6dace21ad6164582383518e2ace1))
+
 ## [1.3.3](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.3.2...v1.3.3) (2025-02-18)
 
 
