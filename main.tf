@@ -149,6 +149,18 @@ resource "azurerm_application_gateway" "application_gateway" {
               header_value = response_header_configuration.value.header_value
             }
           }
+
+          dynamic "url" {
+            for_each = try(rewrite_rule.value.url != null ? [rewrite_rule.value.url] : [], [])
+
+            content {
+              path         = try(url.value.path, null)
+              query_string = try(url.value.query_string, null)
+              components   = try(url.value.components, null)
+              reroute      = try(url.value.reroute, false)
+            }
+          }
+
         }
       }
     }
@@ -269,22 +281,23 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "http_listener" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : {
-          name = try(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
-          ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
-          ## if so then that key is derived for naming, if not then the property name is the actual name used for naming
-          frontend_ip_configuration_name = contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name
-          ) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name
-          frontend_port_name = contains(keys(var.config.frontend_ports), listener.frontend_port_name
-          ) ? replace("fp-${listener.frontend_port_name}", "_", "-") : listener.frontend_port_name
-          protocol             = listener.protocol
-          host_name            = try(listener.host_name, null)
-          require_sni          = try(listener.require_sni, false)
-          ssl_certificate_name = try(listener.certificate.name, null)
-          host_names           = try(listener.host_names, [])
-          ssl_profile_name     = try(listener.ssl_profile_name, null)
-          firewall_policy_id   = try(listener.firewall_policy_id, null)
-        }
+          for listener_key, listener in app.listeners : {
+            name = try(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
+            ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
+            ## if so then that key is derived for naming, if not then the property name is the actual name used for naming
+            frontend_ip_configuration_name = contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name
+            ) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name
+            frontend_port_name = contains(keys(var.config.frontend_ports), listener.frontend_port_name
+            ) ? replace("fp-${listener.frontend_port_name}", "_", "-") : listener.frontend_port_name
+            protocol             = listener.protocol
+            host_name            = try(listener.host_name, null)
+            require_sni          = try(listener.require_sni, false)
+            ssl_certificate_name = try(listener.certificate.name, null)
+            host_names           = try(listener.host_names, [])
+            ssl_profile_name     = try(listener.ssl_profile_name, null)
+            firewall_policy_id   = try(listener.firewall_policy_id, null)
+            custom_errors        = try(listener.custom_error_configuration, [])
+          }
       ]]
     )
     content {
@@ -298,6 +311,13 @@ resource "azurerm_application_gateway" "application_gateway" {
       host_names                     = http_listener.value.host_names
       ssl_profile_name               = http_listener.value.ssl_profile_name
       firewall_policy_id             = http_listener.value.firewall_policy_id
+      dynamic "custom_error_configuration" {
+        for_each = http_listener.value.custom_errors
+        content {
+          status_code           = custom_error_configuration.value.status_code
+          custom_error_page_url = custom_error_configuration.value.custom_error_page_url
+        }
+      }
     }
   }
 
@@ -573,15 +593,21 @@ resource "azurerm_user_assigned_identity" "application_gateway_identity" {
   name                = try(var.config.identity.name, "uai-${var.config.name}")
   resource_group_name = coalesce(try(var.config.identity.resource_group, null), try(var.config.resource_group, null), var.resource_group)
   location            = coalesce(try(var.config.identity.location, null), try(var.config.location, null), var.location)
+
+  tags = try(var.config.tags, var.tags, {})
 }
 
 # role assignment
 resource "azurerm_role_assignment" "kv_secret_user" {
   for_each = try(var.config.identity, null) != null ? { uai = var.config.scope } : {}
 
-  scope                = var.config.scope
-  role_definition_name = "Key Vault Secrets User"
-  principal_id         = azurerm_user_assigned_identity.application_gateway_identity["uai"].principal_id
+  scope                                  = var.config.scope
+  role_definition_name                   = "Key Vault Secrets User"
+  principal_id                           = azurerm_user_assigned_identity.application_gateway_identity["uai"].principal_id
+  description                            = "Role Based Access Control for Application Gateway to access Key Vault Secrets"
+  condition                              = try(var.config.condition, null)
+  condition_version                      = try(var.config.condition_version, null)
+  delegated_managed_identity_resource_id = try(var.config.delegated_managed_identity_resource_id, null)
 }
 
 # associate virtual machine interfaces
