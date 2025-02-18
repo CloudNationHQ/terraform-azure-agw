@@ -159,16 +159,18 @@ resource "azurerm_application_gateway" "application_gateway" {
       for app_key, app in var.config.applications : [
         for listener_key, listener in app.listeners : [
           for pool_key, pool in try(listener.backend_address_pools, {}) : {
-            name  = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-            fqdns = pool.fqdns
+            name         = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
+            fqdns        = pool.fqdns
+            ip_addresses = try(pool.ip_addresses, [])
+            fqdns        = try(pool.fqdns, [])
           }
         ]
       ]
     ])
     content {
       name         = backend_address_pool.value.name
-      fqdns        = try(backend_address_pool.value.fqdns, [])
-      ip_addresses = try(backend_address_pool.value.ip_addresses, [])
+      fqdns        = backend_address_pool.value.fqdns
+      ip_addresses = backend_address_pool.value.ip_addresses
     }
   }
 
@@ -229,7 +231,7 @@ resource "azurerm_application_gateway" "application_gateway" {
           name                                      = try(setting.probe.name, replace("prb-${app_key}-${setting_key}", "_", "-"))
           protocol                                  = try(setting.probe.protocol, setting.protocol)
           path                                      = setting.probe.path
-          host                                      = setting.probe.host
+          host                                      = try(coalesce(setting.probe.host, setting.host_name), null)
           interval                                  = setting.probe.interval
           timeout                                   = setting.probe.timeout
           match_status_codes                        = try(setting.probe.match.status_code, null)
@@ -592,7 +594,7 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
         for listener_key, listener in app.listeners : [
           for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
             for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
-              key                   = "${app_key}-${listener_key}-${pool_key}-${vm_key}"
+              key                   = "${pool_key}-${vm_key}"
               pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
               network_interface_id  = vm.network_interface_id
               ip_configuration_name = vm.ip_configuration_name
