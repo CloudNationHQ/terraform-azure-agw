@@ -269,7 +269,7 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "http_listener" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for fip_key, fip in var.config : [
+        # for fip_key, fip in var.config : [
           for listener_key, listener in app.listeners : {
             name = try(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
             ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
@@ -287,7 +287,8 @@ resource "azurerm_application_gateway" "application_gateway" {
             firewall_policy_id   = try(listener.firewall_policy_id, null)
           }
       ]]
-    ])
+    # ])
+    )
     content {
       name                           = http_listener.value.name
       frontend_ip_configuration_name = http_listener.value.frontend_ip_configuration_name
