@@ -169,12 +169,8 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "backend_address_pool" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        # for listener_key, listener in app.listeners : [
-        # for pool_key, pool in try(listener.backend_address_pools, {}) : {
         for pool_key, pool in try(app.backend_address_pools, {}) : {
-          # name         = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-          name = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
-          # name         = pool.name
+          name         = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
           ip_addresses = try(pool.ip_addresses, [])
           fqdns        = try(pool.fqdns, [])
         }
@@ -439,8 +435,6 @@ resource "azurerm_application_gateway" "application_gateway" {
             rule_type          = listener.routing_rule.rule_type
             priority           = listener.routing_rule.priority
 
-            # backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(listener.backend_address_pools
-            # ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
             backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(app.backend_address_pools
             ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
 
@@ -621,21 +615,16 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
   for_each = {
     for assoc in flatten([
       for app_key, app in var.config.applications : [
-        # for listener_key, listener in app.listeners : [
-        # for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
         for pool_key, pool in lookup(app, "backend_address_pools", {}) : [
           for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
-            key = "${pool_key}-${vm_key}"
-            # pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-            # pool_name             = pool.name
-            pool_name = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
+            key                   = "${pool_key}-${vm_key}"
+            pool_name             = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
             network_interface_id  = vm.network_interface_id
             ip_configuration_name = vm.ip_configuration_name
           }
         ]
       ]
       ]
-      # ]) : assoc.key => assoc
     ) : assoc.key => assoc
   }
 
