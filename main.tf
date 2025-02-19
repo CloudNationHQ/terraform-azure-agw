@@ -616,7 +616,7 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
   for_each = {
     for assoc in flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
+        # for listener_key, listener in app.listeners : [
           for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
             for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
               key                   = "${pool_key}-${vm_key}"
@@ -627,7 +627,8 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
           ]
         ]
       ]
-    ]) : assoc.key => assoc
+    # ]) : assoc.key => assoc
+    ) : assoc.key => assoc
   }
 
   network_interface_id  = each.value.network_interface_id
