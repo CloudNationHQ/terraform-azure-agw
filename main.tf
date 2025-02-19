@@ -169,15 +169,16 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "backend_address_pool" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
-          for pool_key, pool in try(listener.backend_address_pools, {}) : {
-            name         = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-            ip_addresses = try(pool.ip_addresses, [])
-            fqdns        = try(pool.fqdns, [])
-          }
-        ]
+        # for listener_key, listener in app.listeners : [
+        for pool_key, pool in try(listener.backend_address_pools, {}) : {
+          name         = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
+          ip_addresses = try(pool.ip_addresses, [])
+          fqdns        = try(pool.fqdns, [])
+        }
       ]
-    ])
+      ]
+      # ])
+    )
     content {
       name         = backend_address_pool.value.name
       fqdns        = backend_address_pool.value.fqdns
