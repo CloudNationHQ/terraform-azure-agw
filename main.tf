@@ -438,8 +438,9 @@ resource "azurerm_application_gateway" "application_gateway" {
             rule_type          = listener.routing_rule.rule_type
             priority           = listener.routing_rule.priority
 
-            backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(listener.backend_address_pools
+            # backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(listener.backend_address_pools
             # ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
+            backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(app.backend_address_pools
             ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
 
             backend_http_settings_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_http_settings_name, null) != null) ? contains(keys(app.backend_http_settings
@@ -623,7 +624,7 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
         # for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
         for pool_key, pool in lookup(app, "backend_address_pools", {}) : [
           for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
-            key                   = "${pool_key}-${vm_key}"
+            key = "${pool_key}-${vm_key}"
             # pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
             pool_name             = pool.name
             network_interface_id  = vm.network_interface_id
