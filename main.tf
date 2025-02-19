@@ -173,7 +173,8 @@ resource "azurerm_application_gateway" "application_gateway" {
         # for pool_key, pool in try(listener.backend_address_pools, {}) : {
         for pool_key, pool in try(app.backend_address_pools, {}) : {
           # name         = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-          name         = pool.name
+          name = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
+          # name         = pool.name
           ip_addresses = try(pool.ip_addresses, [])
           fqdns        = try(pool.fqdns, [])
         }
@@ -626,7 +627,8 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
           for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
             key = "${pool_key}-${vm_key}"
             # pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-            pool_name             = pool.name
+            # pool_name             = pool.name
+            pool_name = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
             network_interface_id  = vm.network_interface_id
             ip_configuration_name = vm.ip_configuration_name
           }
