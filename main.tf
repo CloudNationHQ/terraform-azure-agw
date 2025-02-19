@@ -619,10 +619,12 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
     for assoc in flatten([
       for app_key, app in var.config.applications : [
         # for listener_key, listener in app.listeners : [
-        for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
+        # for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
+        for pool_key, pool in lookup(app, "backend_address_pools", {}) : [
           for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
             key                   = "${pool_key}-${vm_key}"
-            pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
+            # pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
+            pool_name             = pool.name
             network_interface_id  = vm.network_interface_id
             ip_configuration_name = vm.ip_configuration_name
           }
