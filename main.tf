@@ -439,7 +439,8 @@ resource "azurerm_application_gateway" "application_gateway" {
             priority           = listener.routing_rule.priority
 
             backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(listener.backend_address_pools
-            ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
+            # ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
+            ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
 
             backend_http_settings_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_http_settings_name, null) != null) ? contains(keys(app.backend_http_settings
             ), listener.routing_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${listener.routing_rule.backend_http_settings_name}", "_", "-") : listener.routing_rule.backend_http_settings_name : null
