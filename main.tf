@@ -329,8 +329,7 @@ resource "azurerm_application_gateway" "application_gateway" {
         # only include if it's PathBasedRouting and has path rules
         try(listener.routing_rule.rule_type, null) == "PathBasedRouting" ? {
           "${app_key}-${listener_key}" = {
-            name = try(listener.routing_rule.url_path_map.name, replace("upm-${app_key}-${listener_key}", "_", "-"))
-            # backend_pools    = try(listener.backend_address_pools, {})
+            name             = try(listener.routing_rule.url_path_map.name, replace("upm-${app_key}-${listener_key}", "_", "-"))
             backend_pools    = try(app.backend_address_pools, {})
             backend_settings = try(app.backend_http_settings, {})
             path_rules       = listener.routing_rule.url_path_map.path_rules
@@ -338,7 +337,6 @@ resource "azurerm_application_gateway" "application_gateway" {
             listener_key     = listener_key
 
             default_backend_address_pool_name = try(listener.routing_rule.url_path_map.default_backend_address_pool_name, null) != null ? contains(
-              # keys(listener.backend_address_pools), listener.routing_rule.url_path_map.default_backend_address_pool_name) ? replace(
               keys(app.backend_address_pools), listener.routing_rule.url_path_map.default_backend_address_pool_name) ? replace(
               "bap-${app_key}-${listener.routing_rule.url_path_map.default_backend_address_pool_name}", "_", "-"
             ) : listener.routing_rule.url_path_map.default_backend_address_pool_name : null
@@ -376,7 +374,6 @@ resource "azurerm_application_gateway" "application_gateway" {
           paths = path_rule.value.paths
           backend_address_pool_name = try(path_rule.value.backend_address_pool_name, null) != null ? contains(
             keys(url_path_map.value.backend_pools), path_rule.value.backend_address_pool_name) ? replace(
-            # "bap-${url_path_map.value.app_key}-${url_path_map.value.listener_key}-${path_rule.value.backend_address_pool_name}", "_", "-"
             "bap-${url_path_map.value.app_key}-${path_rule.value.backend_address_pool_name}", "_", "-"
           ) : path_rule.value.backend_address_pool_name : null
 
