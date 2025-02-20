@@ -12,16 +12,7 @@ locals {
           name                = "cert-${module.naming.application_gateway.name}-global"
           key_vault_secret_id = module.kv.certs.global.secret_id
         }
-        backend_address_pools = {
-          blue = {
-            name  = "pool-${module.naming.application_gateway.name}-global-blue"
-            fqdns = ["blue.internal"]
-          }
-          green = {
-            name  = "pool-${module.naming.application_gateway.name}-global-green"
-            fqdns = ["green.internal"]
-          }
-        }
+
         routing_rule = {
           name      = "rule-${module.naming.application_gateway.name}-global"
           rule_type = "PathBasedRouting"
@@ -56,16 +47,6 @@ locals {
         frontend_port_name             = "frontend-port-http"
         protocol                       = "Http"
         host_name                      = "app.company.eu"
-        backend_address_pools = {
-          blue = {
-            name  = "pool-${module.naming.application_gateway.name}-europe-blue"
-            fqdns = ["eu-blue.internal"]
-          }
-          green = {
-            name  = "pool-${module.naming.application_gateway.name}-europe-green"
-            fqdns = ["eu-green.internal"]
-          }
-        }
         routing_rule = {
           name      = "rule-${module.naming.application_gateway.name}-europe"
           rule_type = "PathBasedRouting"
@@ -92,16 +73,6 @@ locals {
         frontend_port_name             = "frontend-port-http"
         protocol                       = "Http"
         host_name                      = "app.company.usa"
-        backend_address_pools = {
-          blue = {
-            name  = "pool-${module.naming.application_gateway.name}-america-blue"
-            fqdns = ["eu-blue.internal"]
-          }
-          green = {
-            name  = "pool-${module.naming.application_gateway.name}-america-green"
-            fqdns = ["eu-green.internal"]
-          }
-        }
         routing_rule = {
           name                       = "rule-${module.naming.application_gateway.name}-america"
           rule_type                  = "Basic"
@@ -116,16 +87,6 @@ locals {
         frontend_port_name             = "frontend-port-http"
         protocol                       = "Http"
         host_name                      = "app.company.asia"
-        backend_address_pools = {
-          blue = {
-            name  = "pool-${module.naming.application_gateway.name}-asia-blue"
-            fqdns = ["eu-blue.internal"]
-          }
-          green = {
-            name  = "pool-${module.naming.application_gateway.name}-asia-green"
-            fqdns = ["eu-green.internal"]
-          }
-        }
         routing_rule = {
           name                        = "rule-${module.naming.application_gateway.name}-asia"
           rule_type                   = "Basic"
@@ -139,16 +100,6 @@ locals {
         frontend_port_name             = "frontend-port-http"
         protocol                       = "Http"
         host_name                      = "app.company.af"
-        backend_address_pools = {
-          blue = {
-            name  = "pool-${module.naming.application_gateway.name}-africa-blue"
-            fqdns = ["af-blue.internal"]
-          }
-          green = {
-            name  = "pool-${module.naming.application_gateway.name}-africa-green"
-            fqdns = ["af-green.internal"]
-          }
-        }
         routing_rule = {
           name      = "rule-${module.naming.application_gateway.name}-africa"
           rule_type = "PathBasedRouting"
@@ -167,12 +118,40 @@ locals {
         }
       }
     }
+
+    backend_address_pools = {
+      gblue = {
+        name  = "pool-${module.naming.application_gateway.name}-global-blue"
+        fqdns = ["blue.mycompany.com"]
+      }
+      ggreen = {
+        name  = "pool-${module.naming.application_gateway.name}-global-green"
+        fqdns = ["green.mycompany.com"]
+      }
+      ablue = {
+        name  = "pool-${module.naming.application_gateway.name}-america-blue"
+        fqdns = ["us-blue.mycompany.com"]
+      }
+      agreen = {
+        name  = "pool-${module.naming.application_gateway.name}-america-green"
+        fqdns = ["us-green.mycompany.com"]
+      }
+      eblue = {
+        name  = "pool-${module.naming.application_gateway.name}-europe-blue"
+        fqdns = ["eu-blue.mycompany.com"]
+      }
+      egreen = {
+        name  = "pool-${module.naming.application_gateway.name}-europe-green"
+        fqdns = ["eu-green.mycompany.com"]
+      }
+    }
+
     backend_http_settings = {
       blue = {
         name      = "settings-${module.naming.application_gateway.name}-global-blue"
         port      = 8080
         protocol  = "Https"
-        host_name = "blue.internal"
+        host_name = "blue.mycompany.com"
         probe = {
           name                                      = "probe-${module.naming.application_gateway.name}-global-blue"
           path                                      = "/health"
@@ -189,7 +168,7 @@ locals {
         name      = "settings-${module.naming.application_gateway.name}-global-green"
         port      = 8080
         protocol  = "Https"
-        host_name = "green.internal"
+        host_name = "green.mycompany.com"
         probe = {
           name                                      = "probe-${module.naming.application_gateway.name}-global-green"
           path                                      = "/health"
@@ -205,7 +184,7 @@ locals {
         name      = "settings-${module.naming.application_gateway.name}-main"
         port      = 8080
         protocol  = "Https"
-        host_name = "main.internal"
+        host_name = "main.mycompany.com"
         probe = {
           name                                      = "probe-${module.naming.application_gateway.name}-main"
           path                                      = "/health"

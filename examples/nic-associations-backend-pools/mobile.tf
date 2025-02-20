@@ -14,23 +14,6 @@ locals {
           key_vault_secret_id = module.kv.certs.mobile.secret_id
         }
 
-        backend_address_pools = {
-          mobile = {
-            name  = "bap-mobile"
-            fqdns = ["mobile.internal"]
-            network_interfaces = {
-              vm1 = {
-                network_interface_id  = module.vms.vm1.network_interfaces.int1.id
-                ip_configuration_name = module.vms.vm1.network_interfaces.int1.ip_configuration[0].name
-              }
-              vm2 = {
-                network_interface_id  = module.vms.vm2.network_interfaces.int1.id
-                ip_configuration_name = module.vms.vm2.network_interfaces.int1.ip_configuration[0].name
-              }
-            }
-          }
-        }
-
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
@@ -39,7 +22,22 @@ locals {
         }
       }
     }
-
+    backend_address_pools = {
+      mobile = {
+        name  = "bap-mobile"
+        fqdns = ["mobile.internal"]
+        network_interfaces = {
+          vm1 = {
+            network_interface_id  = module.vms.vm1.network_interfaces.int1.id
+            ip_configuration_name = module.vms.vm1.network_interfaces.int1.ip_configuration[0].name
+          }
+          vm2 = {
+            network_interface_id  = module.vms.vm2.network_interfaces.int1.id
+            ip_configuration_name = module.vms.vm2.network_interfaces.int1.ip_configuration[0].name
+          }
+        }
+      }
+    }
     backend_http_settings = {
       main = {
         port      = 443

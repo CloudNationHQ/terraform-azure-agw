@@ -19,12 +19,6 @@ locals {
           name                = "main-cert"
           key_vault_secret_id = module.kv.certs.main.secret_id
         }
-        backend_address_pools = {
-          app = {
-            fqdns = ["app.internal"]
-
-          }
-        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
@@ -47,6 +41,11 @@ locals {
           priority                    = 200
           redirect_configuration_name = "to_main"
         }
+      }
+    }
+    backend_address_pools = {
+      app = {
+        fqdns = ["app.internal"]
       }
     }
     backend_http_settings = {

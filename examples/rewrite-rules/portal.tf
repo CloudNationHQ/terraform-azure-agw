@@ -99,10 +99,6 @@ locals {
               header_value = "2.0"
             }
           }
-          url = {
-            path    = "/v2{var_uri_path}"
-            reroute = true
-          }
         }
         env_specific = {
           rule_sequence = 400
@@ -160,10 +156,6 @@ locals {
               ignore_case = true
             }
           }
-          url = {
-            path    = "/api/v2/{var_uri_path_1}"
-            reroute = true
-          }
           request_header_configurations = {
             original_url = {
               header_name  = "X-Original-URL"
@@ -174,6 +166,7 @@ locals {
       }
     }
   }
+
   portal = {
     listeners = {
       main = {
@@ -186,11 +179,6 @@ locals {
         certificate = {
           name                = "portal-cert"
           key_vault_secret_id = module.kv.certs.portal.secret_id
-        }
-        backend_address_pools = {
-          blue = {
-            fqdns = ["portal-blue.internal"]
-          }
         }
         routing_rule = {
           rule_type             = "PathBasedRouting"
@@ -212,11 +200,17 @@ locals {
         }
       }
     }
+    backend_address_pools = {
+      blue = {
+        fqdns = ["portal-blue.internal"]
+      }
+    }
     backend_http_settings = {
       main = {
-        port      = 8080
-        protocol  = "Https"
-        host_name = "portal-blue.internal"
+        port                  = 8080
+        protocol              = "Https"
+        host_name             = "portal-blue.internal"
+        override_backend_path = false
         probe = {
           path     = "/health"
           host     = "portal-blue.internal"

@@ -160,7 +160,6 @@ resource "azurerm_application_gateway" "application_gateway" {
               reroute      = try(url.value.reroute, false)
             }
           }
-
         }
       }
     }
@@ -176,7 +175,6 @@ resource "azurerm_application_gateway" "application_gateway" {
         }
       ]
       ]
-      # ])
     )
     content {
       name         = backend_address_pool.value.name
@@ -537,7 +535,6 @@ resource "azurerm_application_gateway" "application_gateway" {
           selector_match_operator = try(exclusion.value.selector_match_operator, null)
           selector                = try(exclusion.value.selector, null)
         }
-
       }
     }
   }

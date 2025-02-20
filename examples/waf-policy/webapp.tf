@@ -12,17 +12,17 @@ locals {
           name                = "webapp-cert"
           key_vault_secret_id = module.kv.certs.webapp.secret_id
         }
-        backend_address_pools = {
-          primary = {
-            fqdns = ["app.internal"]
-          }
-        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
           backend_address_pool_name  = "primary"
           backend_http_settings_name = "main"
         }
+      }
+    }
+    backend_address_pools = {
+      primary = {
+        fqdns = ["app.internal"]
       }
     }
     backend_http_settings = {

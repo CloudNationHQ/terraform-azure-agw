@@ -11,14 +11,6 @@ locals {
           name                = "global-cert"
           key_vault_secret_id = module.kv.certs.global.secret_id
         }
-        backend_address_pools = {
-          blue = {
-            fqdns = ["blue.internal"]
-          }
-          green = {
-            fqdns = ["green.internal"]
-          }
-        }
         routing_rule = {
           rule_type = "PathBasedRouting"
           priority  = 100
@@ -49,14 +41,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.eu"
         require_sni                    = false
-        backend_address_pools = {
-          blue = {
-            fqdns = ["eu-blue.internal"]
-          }
-          green = {
-            fqdns = ["eu-green.internal"]
-          }
-        }
         routing_rule = {
           rule_type = "PathBasedRouting"
           priority  = 110
@@ -81,14 +65,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.us"
         require_sni                    = false
-        backend_address_pools = {
-          blue = {
-            fqdns = ["us-blue.internal"]
-          }
-          green = {
-            fqdns = ["us-green.internal"]
-          }
-        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 130
@@ -102,14 +78,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.as"
         require_sni                    = false
-        backend_address_pools = {
-          blue = {
-            fqdns = ["as-blue.internal"]
-          }
-          green = {
-            fqdns = ["as-green.internal"]
-          }
-        }
         routing_rule = {
           rule_type                   = "Basic"
           priority                    = 120
@@ -122,14 +90,6 @@ locals {
         protocol                       = "Http"
         host_name                      = "app.company.af"
         require_sni                    = false
-        backend_address_pools = {
-          blue = {
-            fqdns = ["af-blue.internal"]
-          }
-          green = {
-            fqdns = ["af-green.internal"]
-          }
-        }
         routing_rule = {
           rule_type = "PathBasedRouting"
           priority  = 140
@@ -147,6 +107,15 @@ locals {
         }
       }
     }
+    backend_address_pools = {
+      blue = {
+        fqdns = ["blue.internal"]
+      }
+      green = {
+        fqdns = ["green.internal"]
+      }
+    }
+
     backend_http_settings = {
       blue = {
         port      = 8080
