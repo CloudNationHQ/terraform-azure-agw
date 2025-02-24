@@ -12,17 +12,17 @@ locals {
           name                = "api-cert"
           key_vault_secret_id = module.kv.certs.api.secret_id
         }
-        backend_address_pools = {
-          api = {
-            fqdns = ["api.internal"]
-          }
-        }
         routing_rule = {
           rule_type                  = "Basic"
           priority                   = 100
           backend_address_pool_name  = "api"
           backend_http_settings_name = "main"
         }
+      }
+    }
+    backend_address_pools = {
+      api = {
+        fqdns = ["api.internal"]
       }
     }
     backend_http_settings = {

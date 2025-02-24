@@ -160,7 +160,6 @@ resource "azurerm_application_gateway" "application_gateway" {
               reroute      = try(url.value.reroute, false)
             }
           }
-
         }
       }
     }
@@ -169,15 +168,14 @@ resource "azurerm_application_gateway" "application_gateway" {
   dynamic "backend_address_pool" {
     for_each = flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
-          for pool_key, pool in try(listener.backend_address_pools, {}) : {
-            name         = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-            ip_addresses = try(pool.ip_addresses, [])
-            fqdns        = try(pool.fqdns, [])
-          }
-        ]
+        for pool_key, pool in try(app.backend_address_pools, {}) : {
+          name         = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
+          ip_addresses = try(pool.ip_addresses, [])
+          fqdns        = try(pool.fqdns, [])
+        }
       ]
-    ])
+      ]
+    )
     content {
       name         = backend_address_pool.value.name
       fqdns        = backend_address_pool.value.fqdns
@@ -330,15 +328,15 @@ resource "azurerm_application_gateway" "application_gateway" {
         try(listener.routing_rule.rule_type, null) == "PathBasedRouting" ? {
           "${app_key}-${listener_key}" = {
             name             = try(listener.routing_rule.url_path_map.name, replace("upm-${app_key}-${listener_key}", "_", "-"))
-            backend_pools    = try(listener.backend_address_pools, {})
+            backend_pools    = try(app.backend_address_pools, {})
             backend_settings = try(app.backend_http_settings, {})
             path_rules       = listener.routing_rule.url_path_map.path_rules
             app_key          = app_key
             listener_key     = listener_key
 
             default_backend_address_pool_name = try(listener.routing_rule.url_path_map.default_backend_address_pool_name, null) != null ? contains(
-              keys(listener.backend_address_pools), listener.routing_rule.url_path_map.default_backend_address_pool_name) ? replace(
-              "bap-${app_key}-${listener_key}-${listener.routing_rule.url_path_map.default_backend_address_pool_name}", "_", "-"
+              keys(app.backend_address_pools), listener.routing_rule.url_path_map.default_backend_address_pool_name) ? replace(
+              "bap-${app_key}-${listener.routing_rule.url_path_map.default_backend_address_pool_name}", "_", "-"
             ) : listener.routing_rule.url_path_map.default_backend_address_pool_name : null
 
             default_backend_http_settings_name = try(listener.routing_rule.url_path_map.default_backend_http_settings_name, null) != null ? contains(
@@ -374,7 +372,7 @@ resource "azurerm_application_gateway" "application_gateway" {
           paths = path_rule.value.paths
           backend_address_pool_name = try(path_rule.value.backend_address_pool_name, null) != null ? contains(
             keys(url_path_map.value.backend_pools), path_rule.value.backend_address_pool_name) ? replace(
-            "bap-${url_path_map.value.app_key}-${url_path_map.value.listener_key}-${path_rule.value.backend_address_pool_name}", "_", "-"
+            "bap-${url_path_map.value.app_key}-${path_rule.value.backend_address_pool_name}", "_", "-"
           ) : path_rule.value.backend_address_pool_name : null
 
           backend_http_settings_name = try(path_rule.value.backend_http_settings_name, null) != null ? contains(
@@ -435,8 +433,8 @@ resource "azurerm_application_gateway" "application_gateway" {
             rule_type          = listener.routing_rule.rule_type
             priority           = listener.routing_rule.priority
 
-            backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(listener.backend_address_pools
-            ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
+            backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_address_pool_name, null) != null) ? contains(keys(app.backend_address_pools
+            ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
 
             backend_http_settings_name = (listener.routing_rule.rule_type == "Basic" && try(listener.routing_rule.backend_http_settings_name, null) != null) ? contains(keys(app.backend_http_settings
             ), listener.routing_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${listener.routing_rule.backend_http_settings_name}", "_", "-") : listener.routing_rule.backend_http_settings_name : null
@@ -537,7 +535,6 @@ resource "azurerm_application_gateway" "application_gateway" {
           selector_match_operator = try(exclusion.value.selector_match_operator, null)
           selector                = try(exclusion.value.selector, null)
         }
-
       }
     }
   }
@@ -615,18 +612,17 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
   for_each = {
     for assoc in flatten([
       for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
-          for pool_key, pool in lookup(listener, "backend_address_pools", {}) : [
-            for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
-              key                   = "${pool_key}-${vm_key}"
-              pool_name             = try(pool.name, replace("bap-${app_key}-${listener_key}-${pool_key}", "_", "-"))
-              network_interface_id  = vm.network_interface_id
-              ip_configuration_name = vm.ip_configuration_name
-            }
-          ]
+        for pool_key, pool in lookup(app, "backend_address_pools", {}) : [
+          for vm_key, vm in lookup(pool, "network_interfaces", {}) : {
+            key                   = "${pool_key}-${vm_key}"
+            pool_name             = try(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
+            network_interface_id  = vm.network_interface_id
+            ip_configuration_name = vm.ip_configuration_name
+          }
         ]
       ]
-    ]) : assoc.key => assoc
+      ]
+    ) : assoc.key => assoc
   }
 
   network_interface_id  = each.value.network_interface_id
