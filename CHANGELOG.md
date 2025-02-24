@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.0...v1.4.1) (2025-02-24)
+
+
+### Bug Fixes
+
+* fix hierarchy backend pools ([#36](https://github.com/CloudNationHQ/terraform-azure-agw/issues/36)) ([064c4d8](https://github.com/CloudNationHQ/terraform-azure-agw/commit/064c4d820e3b5f3c3486d330676c2b6994722bdf))
+
 ## [1.4.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.3.3...v1.4.0) (2025-02-18)
 
 
