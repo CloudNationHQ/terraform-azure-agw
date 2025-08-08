@@ -54,15 +54,63 @@ module "kv" {
 
 module "public_ip" {
   source  = "cloudnationhq/pip/azure"
-  version = "~> 4.0"
+  version = "~> 2.0"
 
   configs = {
     fe = {
-      name                = module.naming.public_ip.name
-      location            = module.rg.groups.demo.location
-      resource_group_name = module.rg.groups.demo.name
+      name           = module.naming.public_ip.name
+      location       = module.rg.groups.demo.location
+      resource_group = module.rg.groups.demo.name
 
       zones = ["1", "2", "3"]
+    }
+  }
+}
+
+module "policy" {
+  source  = "cloudnationhq/wafwp/azure"
+  version = "~> 2.0"
+
+  config = {
+    name                = module.naming.web_application_firewall_policy.name
+    resource_group_name = module.rg.groups.demo.name
+    location            = "westeurope"
+
+    policy_settings = {
+      mode = "Detection"
+    }
+
+    managed_rules = {
+      managed_rule_sets = {
+        owasp = {
+          version = "3.2"
+          type    = "OWASP"
+          rule_group_overrides = {
+            sql_injection = {
+              rule_group_name = "REQUEST-942-APPLICATION-ATTACK-SQLI"
+              rules = {
+                rule1 = {
+                  id      = "942200"
+                  enabled = false
+                }
+                rule2 = {
+                  id     = "942210"
+                  action = "Log"
+                }
+              }
+            }
+          }
+        }
+        bot_protection = {
+          version = "1.0"
+          type    = "Microsoft_BotManagerRuleSet"
+          rule_group_overrides = {
+            bad_bots = {
+              rule_group_name = "BadBots"
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -75,19 +123,24 @@ module "application_gateway" {
   location       = module.rg.groups.demo.location
 
   config = {
-    scope          = module.kv.vault.id
-    name           = module.naming.application_gateway.name
-    resource_group = module.rg.groups.demo.name
-    location       = module.rg.groups.demo.location
+    scope              = module.kv.vault.id
+    name               = module.naming.application_gateway.name
+    resource_group     = module.rg.groups.demo.name
+    location           = module.rg.groups.demo.location
+    firewall_policy_id = module.policy.firewall_policy.id
 
     sku = {
-      name     = "Standard_v2"
-      tier     = "Standard_v2"
-      capacity = 2
+      name = "WAF_v2"
+      tier = "WAF_v2"
     }
 
     identity = {
       type = "UserAssigned"
+    }
+
+    autoscale_configuration = {
+      min_capacity = 1
+      max_capacity = 10
     }
 
     gateway_ip_configurations = {

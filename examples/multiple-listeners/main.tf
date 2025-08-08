@@ -19,15 +19,15 @@ module "rg" {
 
 module "network" {
   source  = "cloudnationhq/vnet/azure"
-  version = "~> 8.0"
+  version = "~> 9.0"
 
   naming = local.naming
 
   vnet = {
-    name           = module.naming.virtual_network.name
-    address_space  = ["10.18.0.0/16"]
-    location       = module.rg.groups.demo.location
-    resource_group = module.rg.groups.demo.name
+    name                = module.naming.virtual_network.name
+    address_space       = ["10.18.0.0/16"]
+    location            = module.rg.groups.demo.location
+    resource_group_name = module.rg.groups.demo.name
 
     subnets = {
       gw = {
@@ -42,25 +42,25 @@ module "network" {
 
 module "kv" {
   source  = "cloudnationhq/kv/azure"
-  version = "~> 3.0"
+  version = "~> 4.0"
   naming  = local.naming
   vault = {
-    name           = module.naming.key_vault.name_unique
-    location       = module.rg.groups.demo.location
-    resource_group = module.rg.groups.demo.name
-    certs          = local.certs
+    name                = module.naming.key_vault.name_unique
+    location            = module.rg.groups.demo.location
+    resource_group_name = module.rg.groups.demo.name
+    certs               = local.certs
   }
 }
 
 module "public_ip" {
   source  = "cloudnationhq/pip/azure"
-  version = "~> 2.0"
+  version = "~> 4.0"
 
   configs = {
     fe = {
-      name           = module.naming.public_ip.name
-      location       = module.rg.groups.demo.location
-      resource_group = module.rg.groups.demo.name
+      name                = module.naming.public_ip.name
+      location            = module.rg.groups.demo.location
+      resource_group_name = module.rg.groups.demo.name
 
       zones = ["1", "2", "3"]
     }

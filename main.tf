@@ -12,7 +12,7 @@ resource "azurerm_application_gateway" "application_gateway" {
   sku {
     name     = var.config.sku.name
     tier     = var.config.sku.tier
-    capacity = var.config.sku.capacity
+    capacity = try(var.config.sku.capacity, null)
   }
 
   dynamic "identity" {
