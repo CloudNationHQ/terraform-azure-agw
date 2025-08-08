@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.1...v1.4.2) (2025-08-08)
+
+
+### Bug Fixes
+
+* make capacity optional,  ([#45](https://github.com/CloudNationHQ/terraform-azure-agw/issues/45)) ([8c592d3](https://github.com/CloudNationHQ/terraform-azure-agw/commit/8c592d31c7ac287cedcca415a9670de8b43233bd))
+
 ## [1.4.1](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.0...v1.4.1) (2025-02-24)
 
 
