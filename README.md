@@ -88,4 +88,4 @@ MIT Licensed. See [LICENSE](./LICENSE) for full details.
 
 - [Documentation](https://learn.microsoft.com/en-us/azure/load-balancer/)
 - [Rest Api](https://learn.microsoft.com/en-us/rest/api/load-balancer/)
-- [Rest Api Specs](https://github.com/hashicorp/pandora/tree/main/api-definitions/resource-manager/Network/2024-03-01/LoadBalancers)
+- [Rest Api Specs](https://github.com/hashicorp/pandora/tree/main/api-definitions/resource-manager/Network/2024-07-01/ApplicationGateways)
