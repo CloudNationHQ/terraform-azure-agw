@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.2...v1.4.3) (2025-12-10)
+
+
+### Bug Fixes
+
+* Probe host parameter not effective  ([#52](https://github.com/CloudNationHQ/terraform-azure-agw/issues/52)) ([fab6b07](https://github.com/CloudNationHQ/terraform-azure-agw/commit/fab6b073d6a1a0866e9dd47e52d7603d6afd7e58))
+
 ## [1.4.2](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.1...v1.4.2) (2025-08-08)
 
 
