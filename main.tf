@@ -240,7 +240,8 @@ resource "azurerm_application_gateway" "application_gateway" {
           name                                      = try(setting.probe.name, replace("prb-${app_key}-${setting_key}", "_", "-"))
           protocol                                  = try(setting.probe.protocol, setting.protocol)
           path                                      = setting.probe.path
-          host                                      = try(coalesce(setting.probe.host, setting.host_name), null)
+          # host                                      = try(coalesce(setting.probe.host, setting.host_name), null)
+          host                                      = try(coalesce(lookup(setting.probe, "host", null), lookup(setting, "host_name", null)), null)
           interval                                  = setting.probe.interval
           timeout                                   = setting.probe.timeout
           match_status_codes                        = try(setting.probe.match.status_code, null)
