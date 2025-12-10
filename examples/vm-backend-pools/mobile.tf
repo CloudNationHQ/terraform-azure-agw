@@ -32,8 +32,8 @@ locals {
             ip_configuration_name = module.vms.vm1.network_interfaces.vm1-int1.ip_configuration[0].name
           }
           vm2 = {
-            network_interface_id  = module.vms.vm2.network_interfaces.vm2-int2.id
-            ip_configuration_name = module.vms.vm2.network_interfaces.vm2-int2.ip_configuration[0].name
+            network_interface_id  = module.vms.vm2.network_interfaces.vm2-int1.id
+            ip_configuration_name = module.vms.vm2.network_interfaces.vm2-int1.ip_configuration[0].name
           }
         }
       }
