@@ -1,6 +1,6 @@
 module "naming" {
   source  = "cloudnationhq/naming/azure"
-  version = "~> 0.1"
+  version = "~> 0.26"
 
   suffix = ["demo", "dev"]
 }
@@ -43,7 +43,8 @@ module "network" {
 module "kv" {
   source  = "cloudnationhq/kv/azure"
   version = "~> 4.0"
-  naming  = local.naming
+
+  naming = local.naming
   vault = {
     name                = module.naming.key_vault.name_unique
     location            = module.rg.groups.demo.location
@@ -54,13 +55,13 @@ module "kv" {
 
 module "public_ip" {
   source  = "cloudnationhq/pip/azure"
-  version = "~> 2.0"
+  version = "~> 4.0"
 
   configs = {
     fe = {
-      name           = module.naming.public_ip.name
-      location       = module.rg.groups.demo.location
-      resource_group = module.rg.groups.demo.name
+      name                = module.naming.public_ip.name
+      location            = module.rg.groups.demo.location
+      resource_group_name = module.rg.groups.demo.name
 
       zones = ["1", "2", "3"]
     }
@@ -115,19 +116,26 @@ module "policy" {
   }
 }
 
-module "application_gateway" {
-  source  = "cloudnationhq/agw/azure"
-  version = "~> 1.0"
-
-  resource_group = module.rg.groups.demo.name
-  location       = module.rg.groups.demo.location
+module "uai" {
+  source  = "cloudnationhq/uai/azure"
+  version = "~> 2.0"
 
   config = {
-    scope              = module.kv.vault.id
-    name               = module.naming.application_gateway.name
-    resource_group     = module.rg.groups.demo.name
-    location           = module.rg.groups.demo.location
-    firewall_policy_id = module.policy.firewall_policy.id
+    name                = module.naming.user_assigned_identity.name
+    location            = module.rg.groups.demo.location
+    resource_group_name = module.rg.groups.demo.name
+  }
+}
+
+module "application_gateway" {
+  source  = "cloudnationhq/agw/azure"
+  version = "~> 2.0"
+
+  config = {
+    name                = module.naming.application_gateway.name
+    resource_group_name = module.rg.groups.demo.name
+    location            = module.rg.groups.demo.location
+    firewall_policy_id  = module.policy.firewall_policy.id
 
     sku = {
       name = "WAF_v2"
@@ -135,7 +143,13 @@ module "application_gateway" {
     }
 
     identity = {
-      type = "UserAssigned"
+      type         = "UserAssigned"
+      identity_ids = [module.uai.config.id]
+    }
+
+    role_assignment = {
+      scope        = module.kv.vault.id
+      principal_id = module.uai.config.principal_id
     }
 
     autoscale_configuration = {
