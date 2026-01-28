@@ -11,6 +11,10 @@
 
 * add type definitions and changed data structure ([#57](https://github.com/CloudNationHQ/terraform-azure-agw/issues/57)) ([f5fb4ed](https://github.com/CloudNationHQ/terraform-azure-agw/commit/f5fb4ed6ad576932e1f3e1b54f4b31d6b85b4f81))
 
+### Upgrade from v1.5.0 to v2.0.0:
+
+- Update module reference to: `version = "~> 2.0"`
+
 ## [1.5.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.3...v1.5.0) (2025-12-22)
 
 
