@@ -44,7 +44,7 @@ module "kv" {
   source  = "cloudnationhq/kv/azure"
   version = "~> 4.0"
 
-  naming  = local.naming
+  naming = local.naming
   vault = {
     name                = module.naming.key_vault.name_unique
     location            = module.rg.groups.demo.location

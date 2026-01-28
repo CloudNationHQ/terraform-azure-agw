@@ -1,16 +1,16 @@
 variable "config" {
   description = "contains all application gateway configuration"
   type = object({
-    name                                   = string
-    resource_group_name                    = optional(string)
-    location                               = optional(string)
-    scope                                  = optional(string)
-    firewall_policy_id                     = optional(string)
-    force_firewall_policy_association      = optional(bool, false)
-    fips_enabled                           = optional(bool, false)
-    enable_http2                           = optional(bool, false)
-    zones                                  = optional(list(string), [])
-    tags                                   = optional(map(string))
+    name                              = string
+    resource_group_name               = optional(string)
+    location                          = optional(string)
+    scope                             = optional(string)
+    firewall_policy_id                = optional(string)
+    force_firewall_policy_association = optional(bool, false)
+    fips_enabled                      = optional(bool, false)
+    enable_http2                      = optional(bool, false)
+    zones                             = optional(list(string), [])
+    tags                              = optional(map(string))
     sku = object({
       name     = string
       tier     = string
