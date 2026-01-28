@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.5.0...v2.0.0) (2026-01-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* this change causes recreates
+
+### Features
+
+* add type definitions and changed data structure ([#57](https://github.com/CloudNationHQ/terraform-azure-agw/issues/57)) ([f5fb4ed](https://github.com/CloudNationHQ/terraform-azure-agw/commit/f5fb4ed6ad576932e1f3e1b54f4b31d6b85b4f81))
+
 ## [1.5.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.4.3...v1.5.0) (2025-12-22)
 
 
