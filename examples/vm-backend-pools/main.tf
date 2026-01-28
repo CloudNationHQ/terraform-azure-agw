@@ -1,6 +1,6 @@
 module "naming" {
   source  = "cloudnationhq/naming/azure"
-  version = "~> 0.1"
+  version = "~> 0.26"
 
   suffix = ["demo", "dev"]
 }
@@ -50,7 +50,8 @@ module "network" {
 module "kv" {
   source  = "cloudnationhq/kv/azure"
   version = "~> 4.0"
-  naming  = local.naming
+
+  naming = local.naming
 
   vault = {
     name                = module.naming.key_vault.name_unique
@@ -102,28 +103,33 @@ module "vms" {
 
   naming = local.naming
 
-  keyvault            = module.kv.vault.id
   location            = module.rg.groups.demo.location
   resource_group_name = module.rg.groups.demo.name
-  depends_on          = [module.kv]
 
   for_each = local.vms
 
   instance = each.value
 }
 
-module "application_gateway" {
-  source  = "cloudnationhq/agw/azure"
-  version = "~> 1.0"
-
-  resource_group = module.rg.groups.demo.name
-  location       = module.rg.groups.demo.location
+module "uai" {
+  source  = "cloudnationhq/uai/azure"
+  version = "~> 2.0"
 
   config = {
-    scope          = module.kv.vault.id
-    name           = module.naming.application_gateway.name
-    resource_group = module.rg.groups.demo.name
-    location       = module.rg.groups.demo.location
+    name                = module.naming.user_assigned_identity.name
+    location            = module.rg.groups.demo.location
+    resource_group_name = module.rg.groups.demo.name
+  }
+}
+
+module "application_gateway" {
+  source  = "cloudnationhq/agw/azure"
+  version = "~> 2.0"
+
+  config = {
+    name                = module.naming.application_gateway.name
+    resource_group_name = module.rg.groups.demo.name
+    location            = module.rg.groups.demo.location
 
     sku = {
       name     = "Standard_v2"
@@ -132,7 +138,13 @@ module "application_gateway" {
     }
 
     identity = {
-      type = "UserAssigned"
+      type         = "UserAssigned"
+      identity_ids = [module.uai.config.id]
+    }
+
+    role_assignment = {
+      scope        = module.kv.vault.id
+      principal_id = module.uai.config.principal_id
     }
 
     gateway_ip_configurations = {
