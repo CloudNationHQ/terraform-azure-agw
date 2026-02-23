@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.0.0...v2.1.0) (2026-02-23)
+
+
+### Features
+
+* **deps:** bump github.com/cloudnationhq/az-cn-go-validor in /tests ([#59](https://github.com/CloudNationHQ/terraform-azure-agw/issues/59)) ([56b5505](https://github.com/CloudNationHQ/terraform-azure-agw/commit/56b55052ef7a7857981129c1da94d503bde96d7a))
+
 ## [2.0.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v1.5.0...v2.0.0) (2026-01-28)
 
 
