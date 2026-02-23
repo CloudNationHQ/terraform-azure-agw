@@ -3,7 +3,7 @@ module github.com/cloudnationhq/terraform-azure-agw
 go 1.24.2
 
 require (
-	github.com/cloudnationhq/az-cn-go-validor v1.16.0
+	github.com/cloudnationhq/az-cn-go-validor v1.17.0
 	github.com/gruntwork-io/terratest v0.54.0 // indirect
 )
 
