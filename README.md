@@ -59,16 +59,16 @@ Type:
 
 ```hcl
 object({
-    name                                   = string
-    resource_group_name                    = optional(string)
-    location                               = optional(string)
-    scope                                  = optional(string)
-    firewall_policy_id                     = optional(string)
-    force_firewall_policy_association      = optional(bool, false)
-    fips_enabled                           = optional(bool, false)
-    enable_http2                           = optional(bool, false)
-    zones                                  = optional(list(string), [])
-    tags                                   = optional(map(string))
+    name                              = string
+    resource_group_name               = optional(string)
+    location                          = optional(string)
+    scope                             = optional(string)
+    firewall_policy_id                = optional(string)
+    force_firewall_policy_association = optional(bool, false)
+    fips_enabled                      = optional(bool, false)
+    enable_http2                      = optional(bool, false)
+    zones                             = optional(list(string), [])
+    tags                              = optional(map(string))
     sku = object({
       name     = string
       tier     = string
@@ -341,9 +341,17 @@ Default: `{}`
 
 The following outputs are exported:
 
+### <a name="output_backend_address_pool_association"></a> [backend\_address\_pool\_association](#output\_backend\_address\_pool\_association)
+
+Description: contains network interface backend address pool association configuration
+
 ### <a name="output_config"></a> [config](#output\_config)
 
 Description: contains application gateway configuration
+
+### <a name="output_role_assignment"></a> [role\_assignment](#output\_role\_assignment)
+
+Description: contains role assignment configuration
 <!-- END_TF_DOCS -->
 
 ## Goals
