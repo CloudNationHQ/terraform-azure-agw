@@ -3,7 +3,7 @@ module github.com/cloudnationhq/terraform-azure-agw
 go 1.26
 
 require (
-	github.com/cloudnationhq/az-cn-go-validor v1.18.0
+	github.com/cloudnationhq/az-cn-go-validor v1.19.0
 	github.com/gruntwork-io/terratest v0.56.0 // indirect
 )
 
@@ -12,7 +12,7 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/color v1.19.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -25,7 +25,7 @@ require (
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-zglob v0.0.2-0.20190814121620-e3c945676326 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -35,11 +35,11 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tmccombs/hcl2json v0.6.4 // indirect
 	github.com/ulikunitz/xz v0.5.14 // indirect
-	github.com/zclconf/go-cty v1.18.0 // indirect
+	github.com/zclconf/go-cty v1.18.1 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
