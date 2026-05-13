@@ -1,4 +1,6 @@
-resource "azurerm_application_gateway" "this" {
+data "azurerm_client_config" "current" {}
+
+locals {
   resource_group_name = coalesce(
     lookup(
       var.config, "resource_group_name", null
@@ -10,580 +12,563 @@ resource "azurerm_application_gateway" "this" {
     ), var.location
   )
 
-  name                              = var.config.name
-  firewall_policy_id                = var.config.firewall_policy_id
-  force_firewall_policy_association = var.config.force_firewall_policy_association
-  fips_enabled                      = var.config.fips_enabled
-  enable_http2                      = var.config.enable_http2
-  zones                             = var.config.zones
+  parent_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.resource_group_name}"
+  appgw_id  = "${local.parent_id}/providers/Microsoft.Network/applicationGateways/${var.config.name}"
+  tags      = coalesce(var.config.tags, var.tags)
 
-  tags = coalesce(
-    var.config.tags, var.tags
-  )
+  gateway_ip_configurations = [
+    for _, gateway_ip_configuration in var.config.gateway_ip_configurations : {
+      name = gateway_ip_configuration.name
+      properties = {
+        subnet = {
+          id = gateway_ip_configuration.subnet_id
+        }
+      }
+    }
+  ]
 
-  sku {
-    name     = var.config.sku.name
-    tier     = var.config.sku.tier
-    capacity = var.config.sku.capacity
+  private_link_configurations = [
+    for private_link_configuration_key, private_link_configuration in var.config.private_link_configuration : {
+      name = coalesce(private_link_configuration.name, private_link_configuration_key)
+      properties = {
+        ipConfigurations = [
+          for ip_configuration_key, ip_configuration in private_link_configuration.ip_configurations : {
+            name = coalesce(ip_configuration.name, ip_configuration_key)
+            properties = {
+              primary                   = ip_configuration.primary
+              privateIPAddress          = ip_configuration.private_ip_address
+              privateIPAllocationMethod = ip_configuration.private_ip_address_allocation
+              subnet = {
+                id = ip_configuration.subnet_id
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+
+  private_link_configuration_ids = {
+    for private_link_configuration in local.private_link_configurations :
+    private_link_configuration.name => "${local.appgw_id}/privateLinkConfigurations/${private_link_configuration.name}"
   }
+
+  frontend_ip_configurations = [
+    for frontend_ip_configuration_key, frontend_ip_configuration in var.config.frontend_ip_configurations : {
+      name = coalesce(frontend_ip_configuration.name, replace("fip-${frontend_ip_configuration_key}", "_", "-"))
+      properties = {
+        privateIPAddress          = frontend_ip_configuration.private_ip_address
+        privateIPAllocationMethod = frontend_ip_configuration.private_ip_address_allocation
+        privateLinkConfiguration = frontend_ip_configuration.private_link_configuration_name != null ? {
+          id = local.private_link_configuration_ids[frontend_ip_configuration.private_link_configuration_name]
+        } : null
+        publicIPAddress = frontend_ip_configuration.public_ip_address_id != null ? {
+          id = frontend_ip_configuration.public_ip_address_id
+        } : null
+        subnet = frontend_ip_configuration.subnet_id != null ? {
+          id = frontend_ip_configuration.subnet_id
+        } : null
+      }
+    }
+  ]
+
+  frontend_ports = [
+    for frontend_port_key, frontend_port in var.config.frontend_ports : {
+      name = coalesce(frontend_port.name, replace("fp-${frontend_port_key}", "_", "-"))
+      properties = {
+        port = frontend_port.port
+      }
+    }
+  ]
+
+  ssl_certificates = distinct(flatten([
+    for app_key, app in var.config.applications : [
+      for listener_key, listener in app.listeners :
+      {
+        name = listener.certificate.name
+        properties = {
+          keyVaultSecretId = listener.certificate.key_vault_secret_id
+          data             = listener.certificate.data
+          password         = listener.certificate.password
+        }
+    } if listener.certificate != null]
+  ]))
+
+  rewrite_rule_sets = [
+    for rule_set_key, rule_set in var.config.rewrite_rule_sets : {
+      name = coalesce(rule_set.name, replace("rwrs-${rule_set_key}", "_", "-"))
+      properties = {
+        rewriteRules = [
+          for rewrite_rule_key, rewrite_rule in rule_set.rules : {
+            name         = coalesce(rewrite_rule.name, replace("rwr-${rewrite_rule_key}", "_", "-"))
+            ruleSequence = rewrite_rule.rule_sequence
+            conditions = [
+              for _, condition in rewrite_rule.conditions : {
+                variable   = condition.variable
+                pattern    = condition.pattern
+                ignoreCase = condition.ignore_case
+                negate     = condition.negate
+              }
+            ]
+            actionSet = {
+              requestHeaderConfigurations = [
+                for _, request_header_configuration in rewrite_rule.request_header_configurations : {
+                  headerName  = request_header_configuration.header_name
+                  headerValue = request_header_configuration.header_value
+                }
+              ]
+              responseHeaderConfigurations = [
+                for _, response_header_configuration in rewrite_rule.response_header_configurations : {
+                  headerName  = response_header_configuration.header_name
+                  headerValue = response_header_configuration.header_value
+                }
+              ]
+              urlConfiguration = rewrite_rule.url != null ? {
+                modifiedPath        = rewrite_rule.url.path
+                modifiedQueryString = rewrite_rule.url.query_string
+                reroute             = rewrite_rule.url.reroute
+              } : null
+            }
+          }
+        ]
+      }
+    }
+  ]
+
+  backend_address_pools = flatten([
+    for app_key, app in var.config.applications : [
+      for pool_key, pool in app.backend_address_pools : {
+        name = coalesce(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
+        properties = {
+          backendAddresses = concat(
+            [for fqdn in pool.fqdns : { fqdn = fqdn }],
+            [for ip_address in pool.ip_addresses : { ipAddress = ip_address }]
+          )
+        }
+      }
+    ]
+  ])
+
+  backend_address_pool_ids = {
+    for pool in local.backend_address_pools :
+    pool.name => "${local.appgw_id}/backendAddressPools/${pool.name}"
+  }
+
+  probes = flatten([
+    for app_key, app in var.config.applications : [
+      for setting_key, setting in app.backend_http_settings : {
+        name = coalesce(setting.probe.name, replace("prb-${app_key}-${setting_key}", "_", "-"))
+        properties = {
+          protocol                            = coalesce(setting.probe.protocol, setting.protocol)
+          path                                = setting.probe.path
+          host                                = setting.probe.host
+          interval                            = setting.probe.interval
+          timeout                             = setting.probe.timeout
+          port                                = setting.probe.port
+          minServers                          = setting.probe.minimum_servers
+          unhealthyThreshold                  = setting.probe.unhealthy_threshold
+          pickHostNameFromBackendHttpSettings = setting.probe.pick_host_name_from_backend_http_settings
+          match = try(setting.probe.match.status_code, null) != null ? {
+            statusCodes = setting.probe.match.status_code
+            body        = try(setting.probe.match.body, null)
+          } : null
+        }
+      } if setting.probe != null
+    ]
+  ])
+
+  probe_ids = {
+    for probe in local.probes :
+    probe.name => "${local.appgw_id}/probes/${probe.name}"
+  }
+
+  authentication_certificates = [
+    for _, authentication_certificate in var.config.authentication_certificate : {
+      name = authentication_certificate.name
+      properties = {
+        data = authentication_certificate.data
+      }
+    }
+  ]
+
+  authentication_certificate_ids = {
+    for authentication_certificate in local.authentication_certificates :
+    authentication_certificate.name => "${local.appgw_id}/authenticationCertificates/${authentication_certificate.name}"
+  }
+
+  trusted_root_certificates = [
+    for _, trusted_root_certificate in var.config.trusted_root_certificate : {
+      name = trusted_root_certificate.name
+      properties = {
+        data             = trusted_root_certificate.data
+        keyVaultSecretId = trusted_root_certificate.key_vault_secret_id
+      }
+    }
+  ]
+
+  trusted_root_certificate_ids = {
+    for trusted_root_certificate in local.trusted_root_certificates :
+    trusted_root_certificate.name => "${local.appgw_id}/trustedRootCertificates/${trusted_root_certificate.name}"
+  }
+
+  trusted_client_certificates = [
+    for _, trusted_client_certificate in var.config.trusted_client_certificate : {
+      name = trusted_client_certificate.name
+      properties = {
+        data = trusted_client_certificate.data
+      }
+    }
+  ]
+
+  trusted_client_certificate_ids = {
+    for trusted_client_certificate in local.trusted_client_certificates :
+    trusted_client_certificate.name => "${local.appgw_id}/trustedClientCertificates/${trusted_client_certificate.name}"
+  }
+
+  backend_http_settings = flatten([
+    for app_key, app in var.config.applications : [
+      for setting_key, setting in app.backend_http_settings : {
+        name = coalesce(setting.name, replace("bhs-${app_key}-${setting_key}", "_", "-"))
+        properties = {
+          port                           = setting.port
+          protocol                       = setting.protocol
+          hostName                       = setting.host_name
+          cookieBasedAffinity            = setting.cookie_based_affinity
+          requestTimeout                 = setting.request_timeout
+          path                           = setting.path
+          pickHostNameFromBackendAddress = setting.pick_host_name_from_backend_address
+          affinityCookieName             = setting.affinity_cookie_name
+          dedicatedBackendConnection     = setting.dedicated_backend_connection_enabled
+          probe = setting.probe != null ? {
+            id = local.probe_ids[coalesce(setting.probe.name, replace("prb-${app_key}-${setting_key}", "_", "-"))]
+          } : null
+          trustedRootCertificates = [
+            for trusted_root_certificate_name in setting.trusted_root_certificate_names : {
+              id = local.trusted_root_certificate_ids[trusted_root_certificate_name]
+            }
+          ]
+          authenticationCertificates = [
+            for _, authentication_certificate in setting.authentication_certificate : {
+              id = local.authentication_certificate_ids[authentication_certificate.name]
+            }
+          ]
+          connectionDraining = setting.connection_draining != null ? {
+            enabled           = setting.connection_draining.enabled
+            drainTimeoutInSec = setting.connection_draining.drain_timeout_sec
+          } : null
+        }
+      }
+    ]
+  ])
+
+  backend_http_setting_ids = {
+    for setting in local.backend_http_settings :
+    setting.name => "${local.appgw_id}/backendHttpSettingsCollection/${setting.name}"
+  }
+
+  ssl_certificate_ids = {
+    for ssl_certificate in local.ssl_certificates :
+    ssl_certificate.name => "${local.appgw_id}/sslCertificates/${ssl_certificate.name}"
+  }
+
+  rewrite_rule_set_ids = {
+    for rewrite_rule_set in local.rewrite_rule_sets :
+    rewrite_rule_set.name => "${local.appgw_id}/rewriteRuleSets/${rewrite_rule_set.name}"
+  }
+
+  frontend_ip_configuration_ids = {
+    for frontend_ip_configuration in local.frontend_ip_configurations :
+    frontend_ip_configuration.name => "${local.appgw_id}/frontendIPConfigurations/${frontend_ip_configuration.name}"
+  }
+
+  frontend_port_ids = {
+    for frontend_port in local.frontend_ports :
+    frontend_port.name => "${local.appgw_id}/frontendPorts/${frontend_port.name}"
+  }
+
+  ssl_profiles = [
+    for _, ssl_profile in var.config.ssl_profile : {
+      name = ssl_profile.name
+      properties = {
+        trustedClientCertificates = [
+          for trusted_client_certificate_name in ssl_profile.trusted_client_certificate_names : {
+            id = local.trusted_client_certificate_ids[trusted_client_certificate_name]
+          }
+        ]
+        clientAuthConfiguration = {
+          verifyClientCertIssuerDN = ssl_profile.verify_client_cert_issuer_dn
+          verifyClientRevocation   = ssl_profile.verify_client_certificate_revocation
+        }
+        sslPolicy = ssl_profile.ssl_policy != null ? {
+          policyType           = ssl_profile.ssl_policy.policy_type
+          policyName           = ssl_profile.ssl_policy.policy_name
+          cipherSuites         = ssl_profile.ssl_policy.policy_type == "Predefined" ? null : ssl_profile.ssl_policy.cipher_suites
+          disabledSslProtocols = ssl_profile.ssl_policy.policy_type == "Predefined" ? null : ssl_profile.ssl_policy.disabled_protocols
+          minProtocolVersion   = ssl_profile.ssl_policy.policy_type == "Predefined" ? null : ssl_profile.ssl_policy.min_protocol_version
+        } : null
+      }
+    }
+  ]
+
+  ssl_profile_ids = {
+    for ssl_profile in local.ssl_profiles :
+    ssl_profile.name => "${local.appgw_id}/sslProfiles/${ssl_profile.name}"
+  }
+
+  http_listeners = flatten([
+    for app_key, app in var.config.applications : [
+      for listener_key, listener in app.listeners : {
+        name = coalesce(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
+        properties = {
+          frontendIPConfiguration = {
+            id = local.frontend_ip_configuration_ids[contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name]
+          }
+          frontendPort = {
+            id = local.frontend_port_ids[contains(keys(var.config.frontend_ports), listener.frontend_port_name) ? replace("fp-${listener.frontend_port_name}", "_", "-") : listener.frontend_port_name]
+          }
+          protocol                    = listener.protocol
+          hostName                    = listener.host_name
+          requireServerNameIndication = listener.require_sni
+          sslCertificate = listener.certificate != null ? {
+            id = local.ssl_certificate_ids[listener.certificate.name]
+          } : null
+          hostNames = listener.host_names
+          sslProfile = listener.ssl_profile_name != null ? {
+            id = local.ssl_profile_ids[listener.ssl_profile_name]
+          } : null
+          firewallPolicy = listener.firewall_policy_id != null ? {
+            id = listener.firewall_policy_id
+          } : null
+          customErrorConfigurations = [
+            for custom_error_configuration in listener.custom_error_configuration : {
+              statusCode         = custom_error_configuration.status_code
+              customErrorPageUrl = custom_error_configuration.custom_error_page_url
+            }
+          ]
+        }
+      }
+    ]
+  ])
+
+  http_listener_ids = {
+    for http_listener in local.http_listeners :
+    http_listener.name => "${local.appgw_id}/httpListeners/${http_listener.name}"
+  }
+
+  redirect_configurations = flatten([
+    for app_key, app in var.config.applications : [
+      for redirect_key, redirect in var.config.redirect_configurations : {
+        name = coalesce(redirect.name, replace("rdc-${redirect_key}", "_", "-"))
+        properties = {
+          redirectType = redirect.redirect_type
+          targetListener = redirect.target_listener != null ? {
+            id = local.http_listener_ids[contains(keys(app.listeners), redirect.target_listener) ? replace("lstn-${app_key}-${redirect.target_listener}", "_", "-") : redirect.target_listener]
+          } : null
+          targetUrl          = redirect.target_url
+          includePath        = redirect.include_path
+          includeQueryString = redirect.include_query_string
+        }
+      }
+    ]
+  ])
+
+  redirect_configuration_ids = {
+    for redirect_configuration in local.redirect_configurations :
+    redirect_configuration.name => "${local.appgw_id}/redirectConfigurations/${redirect_configuration.name}"
+  }
+
+  url_path_maps = flatten([
+    for app_key, app in var.config.applications : [
+      for listener_key, listener in app.listeners :
+      listener.routing_rule.rule_type == "PathBasedRouting" ? {
+        name = coalesce(try(listener.routing_rule.url_path_map.name, null), replace("upm-${app_key}-${listener_key}", "_", "-"))
+        properties = {
+          defaultBackendAddressPool = listener.routing_rule.url_path_map.default_backend_address_pool_name != null ? {
+            id = local.backend_address_pool_ids[contains(keys(app.backend_address_pools), listener.routing_rule.url_path_map.default_backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.url_path_map.default_backend_address_pool_name}", "_", "-") : listener.routing_rule.url_path_map.default_backend_address_pool_name]
+          } : null
+          defaultBackendHttpSettings = listener.routing_rule.url_path_map.default_backend_http_settings_name != null ? {
+            id = local.backend_http_setting_ids[contains(keys(app.backend_http_settings), listener.routing_rule.url_path_map.default_backend_http_settings_name) ? replace("bhs-${app_key}-${listener.routing_rule.url_path_map.default_backend_http_settings_name}", "_", "-") : listener.routing_rule.url_path_map.default_backend_http_settings_name]
+          } : null
+          defaultRewriteRuleSet = listener.routing_rule.url_path_map.default_rewrite_rule_set_name != null ? {
+            id = local.rewrite_rule_set_ids[contains(keys(var.config.rewrite_rule_sets), listener.routing_rule.url_path_map.default_rewrite_rule_set_name) ? replace("rwrs-${listener.routing_rule.url_path_map.default_rewrite_rule_set_name}", "_", "-") : listener.routing_rule.url_path_map.default_rewrite_rule_set_name]
+          } : null
+          defaultRedirectConfiguration = listener.routing_rule.url_path_map.default_redirect_configuration_name != null ? {
+            id = local.redirect_configuration_ids[contains(keys(var.config.redirect_configurations), listener.routing_rule.url_path_map.default_redirect_configuration_name) ? replace("rdc-${listener.routing_rule.url_path_map.default_redirect_configuration_name}", "_", "-") : listener.routing_rule.url_path_map.default_redirect_configuration_name]
+          } : null
+          pathRules = [
+            for path_rule_key, path_rule in listener.routing_rule.url_path_map.path_rules : {
+              name = coalesce(path_rule.name, path_rule_key)
+              properties = {
+                paths = path_rule.paths
+                backendAddressPool = path_rule.backend_address_pool_name != null ? {
+                  id = local.backend_address_pool_ids[contains(keys(app.backend_address_pools), path_rule.backend_address_pool_name) ? replace("bap-${app_key}-${path_rule.backend_address_pool_name}", "_", "-") : path_rule.backend_address_pool_name]
+                } : null
+                backendHttpSettings = path_rule.backend_http_settings_name != null ? {
+                  id = local.backend_http_setting_ids[contains(keys(app.backend_http_settings), path_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${path_rule.backend_http_settings_name}", "_", "-") : path_rule.backend_http_settings_name]
+                } : null
+                rewriteRuleSet = path_rule.rewrite_rule_set_name != null ? {
+                  id = local.rewrite_rule_set_ids[contains(keys(var.config.rewrite_rule_sets), path_rule.rewrite_rule_set_name) ? replace("rwrs-${path_rule.rewrite_rule_set_name}", "_", "-") : path_rule.rewrite_rule_set_name]
+                } : null
+                redirectConfiguration = path_rule.redirect_configuration_name != null ? {
+                  id = local.redirect_configuration_ids[contains(keys(var.config.redirect_configurations), path_rule.redirect_configuration_name) ? replace("rdc-${path_rule.redirect_configuration_name}", "_", "-") : path_rule.redirect_configuration_name]
+                } : null
+                firewallPolicy = path_rule.firewall_policy_id != null ? {
+                  id = path_rule.firewall_policy_id
+                } : null
+              }
+            }
+          ]
+        }
+      } : null
+    ]
+  ])
+
+  url_path_map_ids = {
+    for url_path_map in local.url_path_maps :
+    url_path_map.name => "${local.appgw_id}/urlPathMaps/${url_path_map.name}"
+    if url_path_map != null
+  }
+
+  request_routing_rules = flatten([
+    for app_key, app in var.config.applications : [
+      for listener_key, listener in app.listeners : {
+        name = coalesce(listener.routing_rule.name, replace("rrr-${app_key}-${listener_key}", "_", "-"))
+        properties = {
+          ruleType = listener.routing_rule.rule_type
+          priority = listener.routing_rule.priority
+          httpListener = {
+            id = local.http_listener_ids[coalesce(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))]
+          }
+          backendAddressPool = (listener.routing_rule.rule_type == "Basic" && listener.routing_rule.backend_address_pool_name != null) ? {
+            id = local.backend_address_pool_ids[contains(keys(app.backend_address_pools), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name]
+          } : null
+          backendHttpSettings = (listener.routing_rule.rule_type == "Basic" && listener.routing_rule.backend_http_settings_name != null) ? {
+            id = local.backend_http_setting_ids[contains(keys(app.backend_http_settings), listener.routing_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${listener.routing_rule.backend_http_settings_name}", "_", "-") : listener.routing_rule.backend_http_settings_name]
+          } : null
+          urlPathMap = listener.routing_rule.rule_type == "PathBasedRouting" ? {
+            id = local.url_path_map_ids[coalesce(try(listener.routing_rule.url_path_map.name, null), replace("upm-${app_key}-${listener_key}", "_", "-"))]
+          } : null
+          redirectConfiguration = (listener.routing_rule.rule_type == "Basic" && listener.routing_rule.redirect_configuration_name != null) ? {
+            id = local.redirect_configuration_ids[contains(keys(var.config.redirect_configurations), listener.routing_rule.redirect_configuration_name) ? replace("rdc-${listener.routing_rule.redirect_configuration_name}", "_", "-") : listener.routing_rule.redirect_configuration_name]
+          } : null
+          rewriteRuleSet = listener.routing_rule.rewrite_rule_set_name != null ? {
+            id = local.rewrite_rule_set_ids[contains(keys(var.config.rewrite_rule_sets), listener.routing_rule.rewrite_rule_set_name) ? replace("rwrs-${listener.routing_rule.rewrite_rule_set_name}", "_", "-") : listener.routing_rule.rewrite_rule_set_name]
+          } : null
+        }
+      }
+    ]
+  ])
+
+  resource_body = {
+    zones = var.config.zones
+
+    properties = {
+      sku = {
+        name     = var.config.sku.name
+        tier     = var.config.sku.tier
+        capacity = var.config.sku.capacity
+      }
+      firewallPolicy = var.config.firewall_policy_id != null ? {
+        id = var.config.firewall_policy_id
+      } : null
+      forceFirewallPolicyAssociation = var.config.force_firewall_policy_association
+      enableFips                     = var.config.fips_enabled
+      enableHttp2                    = var.config.enable_http2
+      globalConfiguration = var.config.global != null ? {
+        enableRequestBuffering  = var.config.global.request_buffering_enabled
+        enableResponseBuffering = var.config.global.response_buffering_enabled
+      } : null
+      gatewayIPConfigurations       = local.gateway_ip_configurations
+      privateLinkConfigurations     = local.private_link_configurations
+      frontendIPConfigurations      = local.frontend_ip_configurations
+      frontendPorts                 = local.frontend_ports
+      sslCertificates               = local.ssl_certificates
+      rewriteRuleSets               = local.rewrite_rule_sets
+      backendAddressPools           = local.backend_address_pools
+      backendHttpSettingsCollection = local.backend_http_settings
+      probes                        = local.probes
+      httpListeners                 = local.http_listeners
+      urlPathMaps                   = [for url_path_map in local.url_path_maps : url_path_map if url_path_map != null]
+      redirectConfigurations        = local.redirect_configurations
+      requestRoutingRules           = local.request_routing_rules
+      autoscaleConfiguration = var.config.autoscale_configuration != null ? {
+        minCapacity = var.config.autoscale_configuration.min_capacity
+        maxCapacity = var.config.autoscale_configuration.max_capacity
+      } : null
+      sslPolicy = var.config.ssl_policy != null ? {
+        policyType           = var.config.ssl_policy.policy_type
+        policyName           = var.config.ssl_policy.policy_name
+        cipherSuites         = var.config.ssl_policy.policy_type == "Predefined" ? null : var.config.ssl_policy.cipher_suites
+        disabledSslProtocols = var.config.ssl_policy.policy_type == "Predefined" ? null : var.config.ssl_policy.disabled_protocols
+        minProtocolVersion   = var.config.ssl_policy.policy_type == "Predefined" ? null : var.config.ssl_policy.min_protocol_version
+      } : null
+      sslProfiles = local.ssl_profiles
+      webApplicationFirewallConfiguration = var.config.waf_configuration != null ? {
+        enabled                = var.config.waf_configuration.enabled
+        firewallMode           = var.config.waf_configuration.firewall_mode
+        ruleSetType            = var.config.waf_configuration.rule_set_type
+        ruleSetVersion         = var.config.waf_configuration.rule_set_version
+        fileUploadLimitInMb    = var.config.waf_configuration.file_upload_limit_mb
+        maxRequestBodySizeInKb = var.config.waf_configuration.max_request_body_size_kb
+        requestBodyCheck       = var.config.waf_configuration.request_body_check
+        disabledRuleGroups = [
+          for _, disabled_rule_group in var.config.waf_configuration.disabled_rule_groups : {
+            ruleGroupName = disabled_rule_group.rule_group_name
+            rules         = disabled_rule_group.rules
+          }
+        ]
+        exclusions = [
+          for _, exclusion in var.config.waf_configuration.exclusion : {
+            matchVariable         = exclusion.match_variable
+            selectorMatchOperator = exclusion.selector_match_operator
+            selector              = exclusion.selector
+          }
+        ]
+      } : null
+      customErrorConfigurations = [
+        for _, custom_error_configuration in var.config.custom_error_configuration : {
+          customErrorPageUrl = custom_error_configuration.custom_error_page_url
+          statusCode         = custom_error_configuration.status_code
+        }
+      ]
+      authenticationCertificates = local.authentication_certificates
+      trustedRootCertificates    = local.trusted_root_certificates
+      trustedClientCertificates  = local.trusted_client_certificates
+    }
+  }
+}
+
+resource "azapi_resource" "this" {
+  location  = local.location
+  name      = var.config.name
+  parent_id = local.parent_id
+  type      = "Microsoft.Network/applicationGateways@2025-03-01"
+  body      = local.resource_body
+  tags      = local.tags
+
+  ignore_null_property = true
+  list_unique_id_property = {
+    "properties.frontendIPConfigurations"                        = "name"
+    "properties.backendAddressPools"                             = "name"
+    "properties.backendHttpSettingsCollection"                   = "name"
+    "properties.frontendPorts"                                   = "name"
+    "properties.backendAddressPools.properties.backendAddresses" = "ipAddress"
+    "properties.httpListeners"                                   = "name"
+    "properties.requestRoutingRules"                             = "name"
+    "properties.probes"                                          = "name"
+    "properties.redirectConfigurations"                          = "name"
+    "properties.rewriteRuleSets"                                 = "name"
+    "properties.sslCertificates"                                 = "name"
+    "properties.urlPathMaps"                                     = "name"
+  }
+  response_export_values    = []
+  schema_validation_enabled = true
 
   dynamic "identity" {
     for_each = var.config.identity != null ? { default = var.config.identity } : {}
     content {
-      type         = var.config.identity.type
-      identity_ids = var.config.identity.identity_ids
-    }
-  }
-
-  dynamic "global" {
-    for_each = var.config.global != null ? { default = var.config.global } : {}
-    content {
-      request_buffering_enabled  = global.value.request_buffering_enabled
-      response_buffering_enabled = global.value.response_buffering_enabled
-    }
-  }
-
-  dynamic "gateway_ip_configuration" {
-    for_each = var.config.gateway_ip_configurations
-    content {
-      name      = gateway_ip_configuration.value.name
-      subnet_id = gateway_ip_configuration.value.subnet_id
-    }
-  }
-
-  # Please Note: The AllowApplicationGatewayPrivateLink feature must be registered on the subscription before enabling private link
-  dynamic "private_link_configuration" {
-    for_each = var.config.private_link_configuration
-
-    content {
-      name = coalesce(private_link_configuration.value.name, private_link_configuration.key)
-      dynamic "ip_configuration" {
-        for_each = private_link_configuration.value.ip_configurations
-
-        content {
-          name                          = coalesce(ip_configuration.value.name, ip_configuration.key)
-          subnet_id                     = ip_configuration.value.subnet_id
-          primary                       = ip_configuration.value.primary
-          private_ip_address            = ip_configuration.value.private_ip_address
-          private_ip_address_allocation = ip_configuration.value.private_ip_address_allocation
-        }
-      }
-    }
-  }
-
-  dynamic "frontend_ip_configuration" {
-    for_each = var.config.frontend_ip_configurations
-
-    content {
-      name                            = coalesce(frontend_ip_configuration.value.name, replace("fip-${frontend_ip_configuration.key}", "_", "-"))
-      public_ip_address_id            = frontend_ip_configuration.value.public_ip_address_id
-      private_ip_address              = frontend_ip_configuration.value.private_ip_address
-      private_ip_address_allocation   = frontend_ip_configuration.value.private_ip_address_allocation
-      subnet_id                       = frontend_ip_configuration.value.subnet_id
-      private_link_configuration_name = frontend_ip_configuration.value.private_link_configuration_name
-    }
-  }
-
-  dynamic "frontend_port" {
-    for_each = var.config.frontend_ports
-
-    content {
-      name = coalesce(frontend_port.value.name, replace("fp-${frontend_port.key}", "_", "-"))
-      port = frontend_port.value.port
-    }
-  }
-
-  dynamic "ssl_certificate" {
-    for_each = distinct(flatten([
-      for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners :
-        {
-          name                = listener.certificate.name
-          key_vault_secret_id = listener.certificate.key_vault_secret_id
-          data                = listener.certificate.data
-          password            = listener.certificate.password
-    } if listener.certificate != null]]))
-
-    content {
-      name                = ssl_certificate.value.name
-      key_vault_secret_id = ssl_certificate.value.key_vault_secret_id
-      data                = ssl_certificate.value.data
-      password            = ssl_certificate.value.password
-    }
-  }
-
-  dynamic "rewrite_rule_set" {
-    for_each = [
-      for rule_set_key, rule_set in var.config.rewrite_rule_sets : {
-        name  = coalesce(rule_set.name, replace("rwrs-${rule_set_key}", "_", "-"))
-        rules = rule_set.rules
-      }
-    ]
-
-    content {
-      name = rewrite_rule_set.value.name
-
-      dynamic "rewrite_rule" {
-        for_each = rewrite_rule_set.value.rules
-
-        content {
-          name          = coalesce(rewrite_rule.value.name, replace("rwr-${rewrite_rule.key}", "_", "-"))
-          rule_sequence = rewrite_rule.value.rule_sequence
-
-          dynamic "condition" {
-            for_each = rewrite_rule.value.conditions
-
-            content {
-              variable    = condition.value.variable
-              pattern     = condition.value.pattern
-              ignore_case = condition.value.ignore_case
-              negate      = condition.value.negate
-            }
-          }
-
-          dynamic "request_header_configuration" {
-            for_each = rewrite_rule.value.request_header_configurations
-
-            content {
-              header_name  = request_header_configuration.value.header_name
-              header_value = request_header_configuration.value.header_value
-            }
-          }
-
-          dynamic "response_header_configuration" {
-            for_each = rewrite_rule.value.response_header_configurations
-
-            content {
-              header_name  = response_header_configuration.value.header_name
-              header_value = response_header_configuration.value.header_value
-            }
-          }
-
-          dynamic "url" {
-            for_each = rewrite_rule.value.url != null ? [rewrite_rule.value.url] : []
-
-            content {
-              path         = url.value.path
-              query_string = url.value.query_string
-              components   = url.value.components
-              reroute      = url.value.reroute
-            }
-          }
-        }
-      }
-    }
-  }
-
-  dynamic "backend_address_pool" {
-    for_each = flatten([
-      for app_key, app in var.config.applications : [
-        for pool_key, pool in app.backend_address_pools : {
-          name         = coalesce(pool.name, replace("bap-${app_key}-${pool_key}", "_", "-"))
-          ip_addresses = pool.ip_addresses
-          fqdns        = pool.fqdns
-        }
-      ]
-    ])
-    content {
-      name         = backend_address_pool.value.name
-      fqdns        = backend_address_pool.value.fqdns
-      ip_addresses = backend_address_pool.value.ip_addresses
-    }
-  }
-
-  dynamic "backend_http_settings" {
-    for_each = flatten([
-      for app_key, app in var.config.applications : [
-        for setting_key, setting in app.backend_http_settings : {
-          name                                 = coalesce(setting.name, replace("bhs-${app_key}-${setting_key}", "_", "-"))
-          port                                 = setting.port
-          protocol                             = setting.protocol
-          host_name                            = setting.host_name
-          cookie_based_affinity                = setting.cookie_based_affinity
-          request_timeout                      = setting.request_timeout
-          probe_name                           = setting.probe != null ? coalesce(setting.probe.name, "prb-${app_key}-${setting_key}") : null
-          path                                 = setting.path
-          pick_host_name_from_backend_address  = setting.pick_host_name_from_backend_address
-          affinity_cookie_name                 = setting.affinity_cookie_name
-          trusted_root_certificate_names       = setting.trusted_root_certificate_names
-          connection_draining                  = setting.connection_draining
-          authentication_certificate           = setting.authentication_certificate
-          dedicated_backend_connection_enabled = setting.dedicated_backend_connection_enabled
-        }
-      ]
-    ])
-    content {
-      name                                 = backend_http_settings.value.name
-      cookie_based_affinity                = backend_http_settings.value.cookie_based_affinity
-      port                                 = backend_http_settings.value.port
-      protocol                             = backend_http_settings.value.protocol
-      host_name                            = backend_http_settings.value.host_name
-      probe_name                           = backend_http_settings.value.probe_name
-      request_timeout                      = backend_http_settings.value.request_timeout
-      path                                 = backend_http_settings.value.path
-      pick_host_name_from_backend_address  = backend_http_settings.value.pick_host_name_from_backend_address
-      affinity_cookie_name                 = backend_http_settings.value.affinity_cookie_name
-      trusted_root_certificate_names       = backend_http_settings.value.trusted_root_certificate_names
-      dedicated_backend_connection_enabled = backend_http_settings.value.dedicated_backend_connection_enabled
-
-      dynamic "connection_draining" {
-        for_each = backend_http_settings.value.connection_draining != null ? { cd = backend_http_settings.value.connection_draining } : {}
-
-        content {
-          enabled           = connection_draining.value.enabled
-          drain_timeout_sec = connection_draining.value.drain_timeout_sec
-        }
-      }
-
-      dynamic "authentication_certificate" {
-        for_each = backend_http_settings.value.authentication_certificate
-        content {
-          name = authentication_certificate.value.name
-        }
-      }
-    }
-  }
-
-  dynamic "probe" {
-    for_each = flatten([
-      for app_key, app in var.config.applications : [
-        for setting_key, setting in app.backend_http_settings : {
-          name                                      = coalesce(setting.probe.name, replace("prb-${app_key}-${setting_key}", "_", "-"))
-          protocol                                  = coalesce(setting.probe.protocol, setting.protocol)
-          path                                      = setting.probe.path
-          host                                      = setting.probe.host
-          interval                                  = setting.probe.interval
-          timeout                                   = setting.probe.timeout
-          match_status_codes                        = try(setting.probe.match.status_code, null)
-          match_body                                = try(setting.probe.match.body, null)
-          port                                      = setting.probe.port
-          minimum_servers                           = setting.probe.minimum_servers
-          pick_host_name_from_backend_http_settings = setting.probe.pick_host_name_from_backend_http_settings
-          unhealthy_threshold                       = setting.probe.unhealthy_threshold
-        } if setting.probe != null
-      ]
-    ])
-
-    content {
-      name                                      = probe.value.name
-      protocol                                  = probe.value.protocol
-      path                                      = probe.value.path
-      host                                      = probe.value.host
-      interval                                  = probe.value.interval
-      timeout                                   = probe.value.timeout
-      port                                      = probe.value.port
-      minimum_servers                           = probe.value.minimum_servers
-      unhealthy_threshold                       = probe.value.unhealthy_threshold
-      pick_host_name_from_backend_http_settings = probe.value.pick_host_name_from_backend_http_settings
-
-      dynamic "match" {
-        for_each = probe.value.match_status_codes != null ? [1] : []
-        content {
-          status_code = probe.value.match_status_codes
-          body        = probe.value.match_body
-        }
-      }
-    }
-  }
-
-  dynamic "http_listener" {
-    for_each = flatten([
-      for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : {
-          name = coalesce(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
-          ## contains(keys()) is used to check if the property name (e.g. frontend_port_name), references a key in another map,
-          ## if so then that key is derived for naming, if not then the property name is the actual name used for naming
-          frontend_ip_configuration_name = contains(keys(var.config.frontend_ip_configurations), listener.frontend_ip_configuration_name
-          ) ? replace("fip-${listener.frontend_ip_configuration_name}", "_", "-") : listener.frontend_ip_configuration_name
-          frontend_port_name = contains(keys(var.config.frontend_ports), listener.frontend_port_name
-          ) ? replace("fp-${listener.frontend_port_name}", "_", "-") : listener.frontend_port_name
-          protocol             = listener.protocol
-          host_name            = listener.host_name
-          require_sni          = listener.require_sni
-          ssl_certificate_name = try(listener.certificate.name, null)
-          host_names           = listener.host_names
-          ssl_profile_name     = listener.ssl_profile_name
-          firewall_policy_id   = listener.firewall_policy_id
-          custom_errors        = listener.custom_error_configuration
-        }
-      ]
-    ])
-    content {
-      name                           = http_listener.value.name
-      frontend_ip_configuration_name = http_listener.value.frontend_ip_configuration_name
-      frontend_port_name             = http_listener.value.frontend_port_name
-      protocol                       = http_listener.value.protocol
-      host_name                      = http_listener.value.host_name
-      require_sni                    = http_listener.value.require_sni
-      ssl_certificate_name           = http_listener.value.ssl_certificate_name
-      host_names                     = http_listener.value.host_names
-      ssl_profile_name               = http_listener.value.ssl_profile_name
-      firewall_policy_id             = http_listener.value.firewall_policy_id
-      dynamic "custom_error_configuration" {
-        for_each = http_listener.value.custom_errors
-        content {
-          status_code           = custom_error_configuration.value.status_code
-          custom_error_page_url = custom_error_configuration.value.custom_error_page_url
-        }
-      }
-    }
-  }
-
-  # url path maps (only when path rules exist)
-  dynamic "url_path_map" {
-    for_each = merge(flatten([
-      for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners :
-        # only include if it's PathBasedRouting and has path rules
-        listener.routing_rule.rule_type == "PathBasedRouting" ? {
-          "${app_key}-${listener_key}" = {
-            name             = coalesce(try(listener.routing_rule.url_path_map.name, null), replace("upm-${app_key}-${listener_key}", "_", "-"))
-            backend_pools    = app.backend_address_pools
-            backend_settings = app.backend_http_settings
-            path_rules       = listener.routing_rule.url_path_map.path_rules
-            app_key          = app_key
-            listener_key     = listener_key
-
-            default_backend_address_pool_name = listener.routing_rule.url_path_map.default_backend_address_pool_name != null ? contains(
-              keys(app.backend_address_pools), listener.routing_rule.url_path_map.default_backend_address_pool_name) ? replace(
-              "bap-${app_key}-${listener.routing_rule.url_path_map.default_backend_address_pool_name}", "_", "-"
-            ) : listener.routing_rule.url_path_map.default_backend_address_pool_name : null
-
-            default_backend_http_settings_name = listener.routing_rule.url_path_map.default_backend_http_settings_name != null ? contains(
-              keys(app.backend_http_settings), listener.routing_rule.url_path_map.default_backend_http_settings_name) ? replace(
-              "bhs-${app_key}-${listener.routing_rule.url_path_map.default_backend_http_settings_name}", "_", "-"
-            ) : listener.routing_rule.url_path_map.default_backend_http_settings_name : null
-
-            default_rewrite_rule_set_name = listener.routing_rule.url_path_map.default_rewrite_rule_set_name != null ? contains(
-              keys(var.config.rewrite_rule_sets), listener.routing_rule.url_path_map.default_rewrite_rule_set_name) ? replace(
-              "rwrs-${listener.routing_rule.url_path_map.default_rewrite_rule_set_name}", "_", "-"
-            ) : listener.routing_rule.url_path_map.default_rewrite_rule_set_name : null
-
-            default_redirect_configuration_name = listener.routing_rule.url_path_map.default_redirect_configuration_name != null ? contains(
-              keys(var.config.redirect_configurations), listener.routing_rule.url_path_map.default_redirect_configuration_name) ? replace(
-              "rdc-${listener.routing_rule.url_path_map.default_redirect_configuration_name}", "_", "-"
-            ) : listener.routing_rule.url_path_map.default_redirect_configuration_name : null
-          }
-        } : {}
-      ]
-    ])...)
-
-    content {
-      name                                = url_path_map.value.name
-      default_backend_address_pool_name   = url_path_map.value.default_backend_address_pool_name
-      default_backend_http_settings_name  = url_path_map.value.default_backend_http_settings_name
-      default_rewrite_rule_set_name       = url_path_map.value.default_rewrite_rule_set_name
-      default_redirect_configuration_name = url_path_map.value.default_redirect_configuration_name
-
-      dynamic "path_rule" {
-        for_each = url_path_map.value.path_rules
-
-        content {
-          name  = coalesce(path_rule.value.name, path_rule.key)
-          paths = path_rule.value.paths
-          backend_address_pool_name = path_rule.value.backend_address_pool_name != null ? contains(
-            keys(url_path_map.value.backend_pools), path_rule.value.backend_address_pool_name) ? replace(
-            "bap-${url_path_map.value.app_key}-${path_rule.value.backend_address_pool_name}", "_", "-"
-          ) : path_rule.value.backend_address_pool_name : null
-
-          backend_http_settings_name = path_rule.value.backend_http_settings_name != null ? contains(
-            keys(url_path_map.value.backend_settings), path_rule.value.backend_http_settings_name) ? replace(
-            "bhs-${url_path_map.value.app_key}-${path_rule.value.backend_http_settings_name}", "_", "-"
-          ) : path_rule.value.backend_http_settings_name : null
-
-          rewrite_rule_set_name = path_rule.value.rewrite_rule_set_name != null ? contains(
-            keys(var.config.rewrite_rule_sets), path_rule.value.rewrite_rule_set_name) ? replace(
-            "rwrs-${path_rule.value.rewrite_rule_set_name}", "_", "-"
-          ) : path_rule.value.rewrite_rule_set_name : null
-
-          redirect_configuration_name = path_rule.value.redirect_configuration_name != null ? contains(
-            keys(var.config.redirect_configurations), path_rule.value.redirect_configuration_name) ? replace(
-            "rdc-${path_rule.value.redirect_configuration_name}", "_", "-"
-          ) : path_rule.value.redirect_configuration_name : null
-
-          firewall_policy_id = path_rule.value.firewall_policy_id
-        }
-      }
-    }
-  }
-
-  dynamic "redirect_configuration" {
-    for_each = flatten([
-      for app_key, app in var.config.applications : [
-        for redirect_key, redirect in var.config.redirect_configurations : {
-          name          = coalesce(redirect.name, replace("rdc-${redirect_key}", "_", "-"))
-          redirect_type = redirect.redirect_type
-          # handle either target_listener or target_url
-          target_listener_name = redirect.target_listener != null ? contains(keys(app.listeners
-          ), redirect.target_listener) ? replace("lstn-${app_key}-${redirect.target_listener}", "_", "-") : redirect.target_listener : null
-          target_url           = redirect.target_url
-          include_path         = redirect.include_path
-          include_query_string = redirect.include_query_string
-        }
-      ]
-    ])
-    content {
-      name                 = redirect_configuration.value.name
-      redirect_type        = redirect_configuration.value.redirect_type
-      target_listener_name = redirect_configuration.value.target_listener_name
-      target_url           = redirect_configuration.value.target_url
-      include_path         = redirect_configuration.value.include_path
-      include_query_string = redirect_configuration.value.include_query_string
-    }
-  }
-
-  dynamic "request_routing_rule" {
-    for_each = flatten([
-      for app_key, app in var.config.applications : [
-        for listener_key, listener in app.listeners : [
-          {
-            name               = coalesce(listener.routing_rule.name, replace("rrr-${app_key}-${listener_key}", "_", "-"))
-            http_listener_name = coalesce(listener.name, replace("lstn-${app_key}-${listener_key}", "_", "-"))
-            rule_type          = listener.routing_rule.rule_type
-            priority           = listener.routing_rule.priority
-
-            backend_address_pool_name = (listener.routing_rule.rule_type == "Basic" && listener.routing_rule.backend_address_pool_name != null) ? contains(keys(app.backend_address_pools
-            ), listener.routing_rule.backend_address_pool_name) ? replace("bap-${app_key}-${listener.routing_rule.backend_address_pool_name}", "_", "-") : listener.routing_rule.backend_address_pool_name : null
-
-            backend_http_settings_name = (listener.routing_rule.rule_type == "Basic" && listener.routing_rule.backend_http_settings_name != null) ? contains(keys(app.backend_http_settings
-            ), listener.routing_rule.backend_http_settings_name) ? replace("bhs-${app_key}-${listener.routing_rule.backend_http_settings_name}", "_", "-") : listener.routing_rule.backend_http_settings_name : null
-
-            url_path_map_name = listener.routing_rule.rule_type == "PathBasedRouting" ? coalesce(try(listener.routing_rule.url_path_map.name, null), replace("upm-${app_key}-${listener_key}", "_", "-")) : null
-
-            redirect_configuration_name = (listener.routing_rule.rule_type == "Basic" && listener.routing_rule.redirect_configuration_name != null) ? contains(keys(var.config.redirect_configurations
-            ), listener.routing_rule.redirect_configuration_name) ? replace("rdc-${listener.routing_rule.redirect_configuration_name}", "_", "-") : listener.routing_rule.redirect_configuration_name : null
-
-            rewrite_rule_set_name = listener.routing_rule.rewrite_rule_set_name != null ? contains(keys(var.config.rewrite_rule_sets
-            ), listener.routing_rule.rewrite_rule_set_name) ? replace("rwrs-${listener.routing_rule.rewrite_rule_set_name}", "_", "-") : listener.routing_rule.rewrite_rule_set_name : null
-          }
-        ]
-      ]
-    ])
-
-    content {
-      name                        = request_routing_rule.value.name
-      rule_type                   = request_routing_rule.value.rule_type
-      http_listener_name          = request_routing_rule.value.http_listener_name
-      backend_address_pool_name   = request_routing_rule.value.backend_address_pool_name
-      backend_http_settings_name  = request_routing_rule.value.backend_http_settings_name
-      url_path_map_name           = request_routing_rule.value.url_path_map_name
-      redirect_configuration_name = request_routing_rule.value.redirect_configuration_name
-      priority                    = request_routing_rule.value.priority
-      rewrite_rule_set_name       = request_routing_rule.value.rewrite_rule_set_name
-    }
-  }
-
-  dynamic "autoscale_configuration" {
-    for_each = var.config.autoscale_configuration != null ? { key = var.config.autoscale_configuration } : {}
-
-    content {
-      min_capacity = autoscale_configuration.value.min_capacity
-      max_capacity = autoscale_configuration.value.max_capacity
-    }
-  }
-
-  dynamic "ssl_policy" {
-    for_each = var.config.ssl_policy != null ? { key = var.config.ssl_policy } : {}
-
-    content {
-      policy_type          = ssl_policy.value.policy_type
-      policy_name          = ssl_policy.value.policy_name
-      cipher_suites        = ssl_policy.value.cipher_suites
-      disabled_protocols   = ssl_policy.value.disabled_protocols
-      min_protocol_version = ssl_policy.value.min_protocol_version
-    }
-  }
-
-  dynamic "ssl_profile" {
-    for_each = var.config.ssl_profile
-
-    content {
-      name                                 = ssl_profile.value.name
-      trusted_client_certificate_names     = ssl_profile.value.trusted_client_certificate_names
-      verify_client_cert_issuer_dn         = ssl_profile.value.verify_client_cert_issuer_dn
-      verify_client_certificate_revocation = ssl_profile.value.verify_client_certificate_revocation
-
-      dynamic "ssl_policy" {
-        for_each = ssl_profile.value.ssl_policy != null ? { key = ssl_profile.value.ssl_policy } : {}
-
-        content {
-          policy_type          = ssl_policy.value.policy_type
-          policy_name          = ssl_policy.value.policy_name
-          cipher_suites        = ssl_policy.value.cipher_suites
-          disabled_protocols   = ssl_policy.value.disabled_protocols
-          min_protocol_version = ssl_policy.value.min_protocol_version
-        }
-      }
-    }
-  }
-
-  dynamic "waf_configuration" {
-    for_each = var.config.waf_configuration != null ? { waf = var.config.waf_configuration } : {}
-
-    content {
-      enabled                  = waf_configuration.value.enabled
-      firewall_mode            = waf_configuration.value.firewall_mode
-      rule_set_type            = waf_configuration.value.rule_set_type
-      rule_set_version         = waf_configuration.value.rule_set_version
-      file_upload_limit_mb     = waf_configuration.value.file_upload_limit_mb
-      max_request_body_size_kb = waf_configuration.value.max_request_body_size_kb
-      request_body_check       = waf_configuration.value.request_body_check
-
-      dynamic "disabled_rule_group" {
-        for_each = waf_configuration.value.disabled_rule_groups
-
-        content {
-          rule_group_name = disabled_rule_group.value.rule_group_name
-          rules           = disabled_rule_group.value.rules
-        }
-      }
-
-      dynamic "exclusion" {
-        for_each = waf_configuration.value.exclusion
-
-        content {
-          match_variable          = exclusion.value.match_variable
-          selector_match_operator = exclusion.value.selector_match_operator
-          selector                = exclusion.value.selector
-        }
-      }
-    }
-  }
-
-  dynamic "custom_error_configuration" {
-    for_each = var.config.custom_error_configuration
-
-    content {
-      custom_error_page_url = custom_error_configuration.value.custom_error_page_url
-      status_code           = custom_error_configuration.value.status_code
-    }
-  }
-
-  dynamic "authentication_certificate" {
-    for_each = var.config.authentication_certificate
-
-    content {
-      name = authentication_certificate.value.name
-      data = authentication_certificate.value.data
-    }
-  }
-
-  dynamic "trusted_root_certificate" {
-    for_each = var.config.trusted_root_certificate
-
-    content {
-      name                = trusted_root_certificate.value.name
-      data                = trusted_root_certificate.value.data
-      key_vault_secret_id = trusted_root_certificate.value.key_vault_secret_id
-    }
-  }
-
-  dynamic "trusted_client_certificate" {
-    for_each = var.config.trusted_client_certificate
-
-    content {
-      name = trusted_client_certificate.value.name
-      data = trusted_client_certificate.value.data
+      type         = identity.value.type
+      identity_ids = identity.value.identity_ids
     }
   }
 
@@ -594,7 +579,11 @@ resource "azurerm_application_gateway" "this" {
   }
 }
 
-# role assignment
+moved {
+  from = azurerm_application_gateway.this
+  to   = azapi_resource.this
+}
+
 resource "azurerm_role_assignment" "this" {
   for_each = var.config.role_assignment != null ? { kv = var.config.role_assignment } : {}
 
@@ -611,7 +600,6 @@ resource "azurerm_role_assignment" "this" {
   skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
 }
 
-# associate virtual machine interfaces
 resource "azurerm_network_interface_application_gateway_backend_address_pool_association" "this" {
   for_each = {
     for assoc in flatten([
@@ -628,10 +616,9 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
     ]) : assoc.key => assoc
   }
 
-  network_interface_id  = each.value.network_interface_id
-  ip_configuration_name = each.value.ip_configuration_name
-  backend_address_pool_id = [
-    for pool in azurerm_application_gateway.this.backend_address_pool : pool.id
-    if pool.name == each.value.pool_name
-  ][0]
+  network_interface_id    = each.value.network_interface_id
+  ip_configuration_name   = each.value.ip_configuration_name
+  backend_address_pool_id = local.backend_address_pool_ids[each.value.pool_name]
+
+  depends_on = [azapi_resource.this]
 }

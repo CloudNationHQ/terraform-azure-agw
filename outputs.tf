@@ -1,6 +1,6 @@
 output "config" {
   description = "contains application gateway configuration"
-  value       = azurerm_application_gateway.this
+  value       = azapi_resource.this
 }
 
 output "role_assignment" {

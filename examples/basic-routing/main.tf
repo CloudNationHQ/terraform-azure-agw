@@ -80,8 +80,7 @@ module "uai" {
 }
 
 module "application_gateway" {
-  source  = "cloudnationhq/agw/azure"
-  version = "~> 2.0"
+  source = "../../"
 
   config = {
     name                = module.naming.application_gateway.name
@@ -126,7 +125,8 @@ module "application_gateway" {
     }
 
     applications = {
-      api = local.api
+      api    = local.api
+      # portal = local.portal
     }
   }
 }
