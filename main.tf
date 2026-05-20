@@ -14,7 +14,7 @@ resource "azurerm_application_gateway" "this" {
   firewall_policy_id                = var.config.firewall_policy_id
   force_firewall_policy_association = var.config.force_firewall_policy_association
   fips_enabled                      = var.config.fips_enabled
-  enable_http2                      = var.config.enable_http2
+  http2_enabled                     = var.config.http2_enabled
   zones                             = var.config.zones
 
   tags = coalesce(
@@ -260,6 +260,7 @@ resource "azurerm_application_gateway" "this" {
           minimum_servers                           = setting.probe.minimum_servers
           pick_host_name_from_backend_http_settings = setting.probe.pick_host_name_from_backend_http_settings
           unhealthy_threshold                       = setting.probe.unhealthy_threshold
+          proxy_protocol_header_enabled             = setting.probe.proxy_protocol_header_enabled
         } if setting.probe != null
       ]
     ])
@@ -275,6 +276,7 @@ resource "azurerm_application_gateway" "this" {
       minimum_servers                           = probe.value.minimum_servers
       unhealthy_threshold                       = probe.value.unhealthy_threshold
       pick_host_name_from_backend_http_settings = probe.value.pick_host_name_from_backend_http_settings
+      proxy_protocol_header_enabled             = probe.value.proxy_protocol_header_enabled
 
       dynamic "match" {
         for_each = probe.value.match_status_codes != null ? [1] : []
@@ -500,7 +502,7 @@ resource "azurerm_application_gateway" "this" {
     content {
       name                                 = ssl_profile.value.name
       trusted_client_certificate_names     = ssl_profile.value.trusted_client_certificate_names
-      verify_client_cert_issuer_dn         = ssl_profile.value.verify_client_cert_issuer_dn
+      verify_client_certificate_issuer_dn  = ssl_profile.value.verify_client_certificate_issuer_dn
       verify_client_certificate_revocation = ssl_profile.value.verify_client_certificate_revocation
 
       dynamic "ssl_policy" {
@@ -584,6 +586,47 @@ resource "azurerm_application_gateway" "this" {
     content {
       name = trusted_client_certificate.value.name
       data = trusted_client_certificate.value.data
+    }
+  }
+
+  dynamic "backend" {
+    for_each = var.config.backends
+
+    content {
+      name                           = coalesce(backend.value.name, replace("be-${backend.key}", "_", "-"))
+      port                           = backend.value.port
+      protocol                       = backend.value.protocol
+      client_ip_preservation_enabled = backend.value.client_ip_preservation_enabled
+      host_name                      = backend.value.host_name
+      probe_name                     = backend.value.probe_name
+      timeout_in_seconds             = backend.value.timeout_in_seconds
+      trusted_root_certificate_names = backend.value.trusted_root_certificate_names
+    }
+  }
+
+  dynamic "listener" {
+    for_each = var.config.listeners
+
+    content {
+      name                           = coalesce(listener.value.name, replace("ln-${listener.key}", "_", "-"))
+      frontend_ip_configuration_name = listener.value.frontend_ip_configuration_name
+      frontend_port_name             = listener.value.frontend_port_name
+      protocol                       = listener.value.protocol
+      host_names                     = listener.value.host_names
+      ssl_certificate_name           = listener.value.ssl_certificate_name
+      ssl_profile_name               = listener.value.ssl_profile_name
+    }
+  }
+
+  dynamic "routing_rule" {
+    for_each = var.config.routing_rules
+
+    content {
+      name                      = coalesce(routing_rule.value.name, replace("rr-${routing_rule.key}", "_", "-"))
+      backend_address_pool_name = routing_rule.value.backend_address_pool_name
+      backend_name              = routing_rule.value.backend_name
+      listener_name             = routing_rule.value.listener_name
+      priority                  = routing_rule.value.priority
     }
   }
 
