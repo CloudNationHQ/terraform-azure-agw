@@ -9,6 +9,7 @@ variable "config" {
     force_firewall_policy_association = optional(bool, false)
     fips_enabled                      = optional(bool, false)
     enable_http2                      = optional(bool, false)
+    http2_enabled                     = optional(bool)
     zones                             = optional(list(string), [])
     tags                              = optional(map(string))
     sku = object({
@@ -61,6 +62,32 @@ variable "config" {
       name = optional(string)
       port = number
     }))
+    backend = optional(map(object({
+      name                           = optional(string)
+      port                           = number
+      protocol                       = string
+      client_ip_preservation_enabled = optional(bool, false)
+      host_name                      = optional(string)
+      probe_name                     = optional(string)
+      timeout_in_seconds             = optional(number, 30)
+      trusted_root_certificate_names = optional(list(string), [])
+    })), {})
+    listener = optional(map(object({
+      name                           = optional(string)
+      frontend_ip_configuration_name = string
+      frontend_port_name             = string
+      protocol                       = string
+      host_names                     = optional(list(string))
+      ssl_certificate_name           = optional(string)
+      ssl_profile_name               = optional(string)
+    })), {})
+    routing_rule = optional(map(object({
+      name                      = optional(string)
+      backend_address_pool_name = string
+      backend_name              = string
+      listener_name             = string
+      priority                  = number
+    })), {})
     applications = map(object({
       listeners = map(object({
         name                           = optional(string)
@@ -147,6 +174,7 @@ variable "config" {
           minimum_servers                           = optional(number)
           unhealthy_threshold                       = optional(number, 3)
           pick_host_name_from_backend_http_settings = optional(bool, false)
+          proxy_protocol_header_enabled             = optional(bool, false)
           match = optional(object({
             status_code = list(string)
             body        = optional(string)
@@ -204,6 +232,7 @@ variable "config" {
       name                                 = string
       trusted_client_certificate_names     = list(string)
       verify_client_cert_issuer_dn         = optional(bool, false)
+      verify_client_certificate_issuer_dn  = optional(bool)
       verify_client_certificate_revocation = optional(string)
       ssl_policy = optional(object({
         policy_type          = optional(string, "Predefined")
