@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.1.0...v2.2.0) (2026-06-05)
+
+
+### Features
+
+* add missing optional application gateway schema items ([#81](https://github.com/CloudNationHQ/terraform-azure-agw/issues/81)) ([f101c19](https://github.com/CloudNationHQ/terraform-azure-agw/commit/f101c19d26ecc3dce1a2fa4c8a9ae47824f7e26f))
+* add missing optional backend_http_settings sni and certificate chain validation arguments ([#83](https://github.com/CloudNationHQ/terraform-azure-agw/issues/83)) ([010eb1b](https://github.com/CloudNationHQ/terraform-azure-agw/commit/010eb1b6974ec8e9879bd7801b47c77a67b44b25))
+* **deps:** bump github.com/cloudnationhq/az-cn-go-validor in /tests ([#65](https://github.com/CloudNationHQ/terraform-azure-agw/issues/65)) ([d4b8a75](https://github.com/CloudNationHQ/terraform-azure-agw/commit/d4b8a759d4d6676714a68c49e766b23c4ce1ced5))
+
 ## [2.1.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.0.0...v2.1.0) (2026-04-03)
 
 
