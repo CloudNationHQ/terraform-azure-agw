@@ -130,6 +130,9 @@ variable "config" {
         affinity_cookie_name                 = optional(string)
         trusted_root_certificate_names       = optional(list(string), [])
         dedicated_backend_connection_enabled = optional(bool)
+        certificate_chain_validation_enabled = optional(bool)
+        sni_name                             = optional(string)
+        sni_validation_enabled               = optional(bool)
         connection_draining = optional(object({
           enabled           = bool
           drain_timeout_sec = number

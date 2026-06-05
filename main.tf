@@ -209,6 +209,9 @@ resource "azurerm_application_gateway" "this" {
           connection_draining                  = setting.connection_draining
           authentication_certificate           = setting.authentication_certificate
           dedicated_backend_connection_enabled = setting.dedicated_backend_connection_enabled
+          certificate_chain_validation_enabled = setting.certificate_chain_validation_enabled
+          sni_name                             = setting.sni_name
+          sni_validation_enabled               = setting.sni_validation_enabled
         }
       ]
     ])
@@ -225,6 +228,9 @@ resource "azurerm_application_gateway" "this" {
       affinity_cookie_name                 = backend_http_settings.value.affinity_cookie_name
       trusted_root_certificate_names       = backend_http_settings.value.trusted_root_certificate_names
       dedicated_backend_connection_enabled = backend_http_settings.value.dedicated_backend_connection_enabled
+      certificate_chain_validation_enabled = backend_http_settings.value.certificate_chain_validation_enabled
+      sni_name                             = backend_http_settings.value.sni_name
+      sni_validation_enabled               = backend_http_settings.value.sni_validation_enabled
 
       dynamic "connection_draining" {
         for_each = backend_http_settings.value.connection_draining != null ? { cd = backend_http_settings.value.connection_draining } : {}
