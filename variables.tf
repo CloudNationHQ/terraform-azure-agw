@@ -125,7 +125,7 @@ variable "config" {
         host_name                            = optional(string)
         cookie_based_affinity                = optional(string, "Disabled")
         request_timeout                      = optional(number, 30)
-        path                                 = optional(string, "/")
+        path                                 = optional(string)
         pick_host_name_from_backend_address  = optional(bool, false)
         affinity_cookie_name                 = optional(string)
         trusted_root_certificate_names       = optional(list(string), [])
