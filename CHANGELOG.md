@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.2.0...v2.2.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* remove default "/" from backend_http_settings path to  preserve request paths ([#85](https://github.com/CloudNationHQ/terraform-azure-agw/issues/85)) ([2d823c9](https://github.com/CloudNationHQ/terraform-azure-agw/commit/2d823c9aa01780f28e22868123629c54ba030c3f))
+
 ## [2.2.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.1.0...v2.2.0) (2026-06-05)
 
 
