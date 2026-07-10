@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.2.1...v2.3.0) (2026-07-10)
+
+
+### Features
+
+* **deps:** bump golang.org/x/crypto from 0.45.0 to 0.52.0 in /tests ([#87](https://github.com/CloudNationHQ/terraform-azure-agw/issues/87)) ([dfd3882](https://github.com/CloudNationHQ/terraform-azure-agw/commit/dfd3882f5d87845c911204dda3d97525275a3735))
+
 ## [2.2.1](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.2.0...v2.2.1) (2026-06-10)
 
 
