@@ -23,6 +23,9 @@ locals {
           }
         }
       }
+      os_disk = {
+        storage_account_type = "Standard_LRS"
+      }
       source_image_reference = {
         offer     = "WindowsServer"
         publisher = "MicrosoftWindowsServer"
@@ -50,6 +53,9 @@ locals {
             }
           }
         }
+      }
+      os_disk = {
+        storage_account_type = "Standard_LRS"
       }
       source_image_reference = {
         offer     = "WindowsServer"

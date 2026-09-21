@@ -31,13 +31,13 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.0)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
+- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 5.0)
 
 ## Providers
 
 The following providers are used by this module:
 
-- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (~> 4.0)
+- <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) (~> 5.0)
 
 ## Resources
 
@@ -51,7 +51,7 @@ The following resources are used by this module:
 
 The following input variables are required:
 
-### <a name="input_config"></a> [config](#input\_config)
+### <a name="input_application_gateway"></a> [application\_gateway](#input\_application\_gateway)
 
 Description: contains all application gateway configuration
 
@@ -66,8 +66,7 @@ object({
     firewall_policy_id                = optional(string)
     force_firewall_policy_association = optional(bool, false)
     fips_enabled                      = optional(bool, false)
-    enable_http2                      = optional(bool, false)
-    http2_enabled                     = optional(bool)
+    http2_enabled                     = optional(bool, false)
     zones                             = optional(list(string), [])
     tags                              = optional(map(string))
     sku = object({
@@ -79,17 +78,19 @@ object({
       type         = optional(string, "UserAssigned")
       identity_ids = list(string)
     }))
-    role_assignment = optional(object({
+    role_assignments = optional(map(object({
       name                                   = optional(string)
       scope                                  = string
+      role_definition_name                   = optional(string, "Key Vault Secrets User")
       role_definition_id                     = optional(string)
       principal_id                           = string
       principal_type                         = optional(string)
+      description                            = optional(string, "Role Based Access Control for Application Gateway to access Key Vault Secrets")
       condition                              = optional(string)
       condition_version                      = optional(string)
       delegated_managed_identity_resource_id = optional(string)
       skip_service_principal_aad_check       = optional(bool)
-    }))
+    })), {})
     global = optional(object({
       request_buffering_enabled  = bool
       response_buffering_enabled = bool
@@ -105,14 +106,14 @@ object({
         subnet_id                     = string
         primary                       = optional(bool, false)
         private_ip_address            = optional(string)
-        private_ip_address_allocation = optional(string, "Dynamic")
+        private_ip_address_allocation = optional(string)
       }))
     })), {})
     frontend_ip_configurations = map(object({
       name                            = optional(string)
       public_ip_address_id            = optional(string)
       private_ip_address              = optional(string)
-      private_ip_address_allocation   = optional(string, "Dynamic")
+      private_ip_address_allocation   = optional(string)
       subnet_id                       = optional(string)
       private_link_configuration_name = optional(string)
     }))
@@ -127,7 +128,7 @@ object({
         frontend_port_name             = string
         protocol                       = string
         host_name                      = optional(string)
-        require_sni                    = optional(bool, false)
+        require_sni                    = optional(bool)
         host_names                     = optional(list(string), [])
         ssl_profile_name               = optional(string)
         firewall_policy_id             = optional(string)
@@ -182,9 +183,9 @@ object({
         protocol                             = string
         host_name                            = optional(string)
         cookie_based_affinity                = optional(string, "Disabled")
-        request_timeout                      = optional(number, 30)
+        request_timeout                      = optional(number)
         path                                 = optional(string)
-        pick_host_name_from_backend_address  = optional(bool, false)
+        pick_host_name_from_backend_address  = optional(bool)
         affinity_cookie_name                 = optional(string)
         trusted_root_certificate_names       = optional(list(string), [])
         dedicated_backend_connection_enabled = optional(bool)
@@ -195,9 +196,6 @@ object({
           enabled           = bool
           drain_timeout_sec = number
         }))
-        authentication_certificate = optional(map(object({
-          name = string
-        })), {})
         probe = optional(object({
           name                                      = optional(string)
           protocol                                  = optional(string)
@@ -208,7 +206,7 @@ object({
           timeout                                   = number
           minimum_servers                           = optional(number)
           unhealthy_threshold                       = optional(number, 3)
-          pick_host_name_from_backend_http_settings = optional(bool, false)
+          pick_host_name_from_backend_http_settings = optional(bool)
           proxy_protocol_header_enabled             = optional(bool)
           match = optional(object({
             status_code = list(string)
@@ -275,8 +273,8 @@ object({
       redirect_type        = string
       target_listener      = optional(string)
       target_url           = optional(string)
-      include_path         = optional(bool, false)
-      include_query_string = optional(bool, false)
+      include_path         = optional(bool)
+      include_query_string = optional(bool)
     })), {})
     autoscale_configuration = optional(object({
       min_capacity = number
@@ -306,11 +304,11 @@ object({
     waf_configuration = optional(object({
       enabled                  = optional(bool, true)
       firewall_mode            = optional(string, "Prevention")
-      rule_set_type            = optional(string, "OWASP")
+      rule_set_type            = optional(string)
       rule_set_version         = optional(string, "3.2")
-      file_upload_limit_mb     = optional(number, 100)
-      max_request_body_size_kb = optional(number, 128)
-      request_body_check       = optional(bool, true)
+      file_upload_limit_mb     = optional(number)
+      max_request_body_size_kb = optional(number)
+      request_body_check       = optional(bool)
       disabled_rule_groups = optional(map(object({
         rule_group_name = string
         rules           = optional(list(number), [])
@@ -324,10 +322,6 @@ object({
     custom_error_configuration = optional(map(object({
       status_code           = string
       custom_error_page_url = string
-    })), {})
-    authentication_certificate = optional(map(object({
-      name = string
-      data = string
     })), {})
     trusted_root_certificate = optional(map(object({
       name                = string
@@ -373,15 +367,15 @@ Default: `{}`
 
 The following outputs are exported:
 
+### <a name="output_application_gateway"></a> [application\_gateway](#output\_application\_gateway)
+
+Description: contains application gateway configuration
+
 ### <a name="output_backend_address_pool_association"></a> [backend\_address\_pool\_association](#output\_backend\_address\_pool\_association)
 
 Description: contains network interface backend address pool association configuration
 
-### <a name="output_config"></a> [config](#output\_config)
-
-Description: contains application gateway configuration
-
-### <a name="output_role_assignment"></a> [role\_assignment](#output\_role\_assignment)
+### <a name="output_role_assignments"></a> [role\_assignments](#output\_role\_assignments)
 
 Description: contains role assignment configuration
 <!-- END_TF_DOCS -->
@@ -406,11 +400,7 @@ To update the module's documentation run `make doc`
 
 We welcome contributions from the community! Whether it's reporting a bug, suggesting a new feature, or submitting a pull request, your input is highly valued.
 
-For more information, please see our contribution [guidelines](./CONTRIBUTING.md). <br><br>
-
-<a href="https://github.com/cloudnationhq/terraform-azure-agw/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=cloudnationhq/terraform-azure-agw" />
-</a>
+For more information, please see our contribution [guidelines](./CONTRIBUTING.md).
 
 ## License
 
@@ -420,4 +410,3 @@ MIT Licensed. See [LICENSE](./LICENSE) for full details.
 
 - [Documentation](https://learn.microsoft.com/en-us/azure/load-balancer/)
 - [Rest Api](https://learn.microsoft.com/en-us/rest/api/load-balancer/)
-- [Rest Api Specs](https://github.com/hashicorp/pandora/tree/main/api-definitions/resource-manager/Network/2024-07-01/ApplicationGateways)

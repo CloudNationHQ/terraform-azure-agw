@@ -1,4 +1,4 @@
-variable "config" {
+variable "application_gateway" {
   description = "contains all application gateway configuration"
   type = object({
     name                              = string
@@ -8,8 +8,7 @@ variable "config" {
     firewall_policy_id                = optional(string)
     force_firewall_policy_association = optional(bool, false)
     fips_enabled                      = optional(bool, false)
-    enable_http2                      = optional(bool, false)
-    http2_enabled                     = optional(bool)
+    http2_enabled                     = optional(bool, false)
     zones                             = optional(list(string), [])
     tags                              = optional(map(string))
     sku = object({
@@ -21,17 +20,19 @@ variable "config" {
       type         = optional(string, "UserAssigned")
       identity_ids = list(string)
     }))
-    role_assignment = optional(object({
+    role_assignments = optional(map(object({
       name                                   = optional(string)
       scope                                  = string
+      role_definition_name                   = optional(string, "Key Vault Secrets User")
       role_definition_id                     = optional(string)
       principal_id                           = string
       principal_type                         = optional(string)
+      description                            = optional(string, "Role Based Access Control for Application Gateway to access Key Vault Secrets")
       condition                              = optional(string)
       condition_version                      = optional(string)
       delegated_managed_identity_resource_id = optional(string)
       skip_service_principal_aad_check       = optional(bool)
-    }))
+    })), {})
     global = optional(object({
       request_buffering_enabled  = bool
       response_buffering_enabled = bool
@@ -47,14 +48,14 @@ variable "config" {
         subnet_id                     = string
         primary                       = optional(bool, false)
         private_ip_address            = optional(string)
-        private_ip_address_allocation = optional(string, "Dynamic")
+        private_ip_address_allocation = optional(string)
       }))
     })), {})
     frontend_ip_configurations = map(object({
       name                            = optional(string)
       public_ip_address_id            = optional(string)
       private_ip_address              = optional(string)
-      private_ip_address_allocation   = optional(string, "Dynamic")
+      private_ip_address_allocation   = optional(string)
       subnet_id                       = optional(string)
       private_link_configuration_name = optional(string)
     }))
@@ -69,7 +70,7 @@ variable "config" {
         frontend_port_name             = string
         protocol                       = string
         host_name                      = optional(string)
-        require_sni                    = optional(bool, false)
+        require_sni                    = optional(bool)
         host_names                     = optional(list(string), [])
         ssl_profile_name               = optional(string)
         firewall_policy_id             = optional(string)
@@ -124,9 +125,9 @@ variable "config" {
         protocol                             = string
         host_name                            = optional(string)
         cookie_based_affinity                = optional(string, "Disabled")
-        request_timeout                      = optional(number, 30)
+        request_timeout                      = optional(number)
         path                                 = optional(string)
-        pick_host_name_from_backend_address  = optional(bool, false)
+        pick_host_name_from_backend_address  = optional(bool)
         affinity_cookie_name                 = optional(string)
         trusted_root_certificate_names       = optional(list(string), [])
         dedicated_backend_connection_enabled = optional(bool)
@@ -137,9 +138,6 @@ variable "config" {
           enabled           = bool
           drain_timeout_sec = number
         }))
-        authentication_certificate = optional(map(object({
-          name = string
-        })), {})
         probe = optional(object({
           name                                      = optional(string)
           protocol                                  = optional(string)
@@ -150,7 +148,7 @@ variable "config" {
           timeout                                   = number
           minimum_servers                           = optional(number)
           unhealthy_threshold                       = optional(number, 3)
-          pick_host_name_from_backend_http_settings = optional(bool, false)
+          pick_host_name_from_backend_http_settings = optional(bool)
           proxy_protocol_header_enabled             = optional(bool)
           match = optional(object({
             status_code = list(string)
@@ -217,8 +215,8 @@ variable "config" {
       redirect_type        = string
       target_listener      = optional(string)
       target_url           = optional(string)
-      include_path         = optional(bool, false)
-      include_query_string = optional(bool, false)
+      include_path         = optional(bool)
+      include_query_string = optional(bool)
     })), {})
     autoscale_configuration = optional(object({
       min_capacity = number
@@ -248,11 +246,11 @@ variable "config" {
     waf_configuration = optional(object({
       enabled                  = optional(bool, true)
       firewall_mode            = optional(string, "Prevention")
-      rule_set_type            = optional(string, "OWASP")
+      rule_set_type            = optional(string)
       rule_set_version         = optional(string, "3.2")
-      file_upload_limit_mb     = optional(number, 100)
-      max_request_body_size_kb = optional(number, 128)
-      request_body_check       = optional(bool, true)
+      file_upload_limit_mb     = optional(number)
+      max_request_body_size_kb = optional(number)
+      request_body_check       = optional(bool)
       disabled_rule_groups = optional(map(object({
         rule_group_name = string
         rules           = optional(list(number), [])
@@ -267,10 +265,6 @@ variable "config" {
       status_code           = string
       custom_error_page_url = string
     })), {})
-    authentication_certificate = optional(map(object({
-      name = string
-      data = string
-    })), {})
     trusted_root_certificate = optional(map(object({
       name                = string
       data                = optional(string)
@@ -283,12 +277,12 @@ variable "config" {
   })
 
   validation {
-    condition     = var.config.location != null || var.location != null
+    condition     = var.application_gateway.location != null || var.location != null
     error_message = "location must be provided either in the config object or as a separate variable."
   }
 
   validation {
-    condition     = var.config.resource_group_name != null || var.resource_group_name != null
+    condition     = var.application_gateway.resource_group_name != null || var.resource_group_name != null
     error_message = "resource_group_name must be provided either in the config object or as a separate variable."
   }
 }
