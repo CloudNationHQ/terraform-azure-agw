@@ -1,9 +1,9 @@
-output "config" {
+output "application_gateway" {
   description = "contains application gateway configuration"
   value       = azurerm_application_gateway.this
 }
 
-output "role_assignment" {
+output "role_assignments" {
   description = "contains role assignment configuration"
   value       = azurerm_role_assignment.this
 }

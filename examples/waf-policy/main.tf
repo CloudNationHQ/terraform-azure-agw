@@ -1,13 +1,13 @@
 module "naming" {
   source  = "cloudnationhq/naming/azure"
-  version = "~> 0.26"
+  version = "~> 0.32"
 
   suffix = ["demo", "dev"]
 }
 
 module "rg" {
   source  = "cloudnationhq/rg/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
 
   groups = {
     demo = {
@@ -19,9 +19,8 @@ module "rg" {
 
 module "network" {
   source  = "cloudnationhq/vnet/azure"
-  version = "~> 9.0"
+  version = "~> 10.0"
 
-  naming = local.naming
 
   vnet = {
     name                = module.naming.virtual_network.name
@@ -42,9 +41,8 @@ module "network" {
 
 module "kv" {
   source  = "cloudnationhq/kv/azure"
-  version = "~> 4.0"
+  version = "~> 6.0"
 
-  naming = local.naming
 
   vault = {
     name                = module.naming.key_vault.name_unique
@@ -56,9 +54,9 @@ module "kv" {
 
 module "public_ip" {
   source  = "cloudnationhq/pip/azure"
-  version = "~> 4.0"
+  version = "~> 5.0"
 
-  configs = {
+  public_ips = {
     fe = {
       name                = module.naming.public_ip.name
       location            = module.rg.groups.demo.location
@@ -71,9 +69,9 @@ module "public_ip" {
 
 module "policy" {
   source  = "cloudnationhq/wafwp/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
 
-  config = {
+  policy = {
     name                = module.naming.web_application_firewall_policy.name
     resource_group_name = module.rg.groups.demo.name
     location            = "westeurope"
@@ -119,9 +117,9 @@ module "policy" {
 
 module "uai" {
   source  = "cloudnationhq/uai/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
 
-  config = {
+  identity = {
     name                = module.naming.user_assigned_identity.name
     location            = module.rg.groups.demo.location
     resource_group_name = module.rg.groups.demo.name
@@ -130,9 +128,9 @@ module "uai" {
 
 module "application_gateway" {
   source  = "cloudnationhq/agw/azure"
-  version = "~> 2.0"
+  version = "~> 3.0"
 
-  config = {
+  application_gateway = {
     name                = module.naming.application_gateway.name
     resource_group_name = module.rg.groups.demo.name
     location            = module.rg.groups.demo.location
@@ -146,12 +144,14 @@ module "application_gateway" {
 
     identity = {
       type         = "UserAssigned"
-      identity_ids = [module.uai.config.id]
+      identity_ids = [module.uai.identity.id]
     }
 
-    role_assignment = {
-      scope        = module.kv.vault.id
-      principal_id = module.uai.config.principal_id
+    role_assignments = {
+      kv = {
+        scope        = module.kv.vault.id
+        principal_id = module.uai.identity.principal_id
+      }
     }
 
     gateway_ip_configurations = {
@@ -164,7 +164,7 @@ module "application_gateway" {
     frontend_ip_configurations = {
       public = {
         name                 = "feip-prod-westus-001"
-        public_ip_address_id = module.public_ip.configs.fe.id
+        public_ip_address_id = module.public_ip.public_ips.fe.id
       }
     }
 
