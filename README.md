@@ -293,6 +293,7 @@ object({
       verify_client_cert_issuer_dn         = optional(bool, false)
       verify_client_certificate_issuer_dn  = optional(bool)
       verify_client_certificate_revocation = optional(string)
+      client_authentication_mode           = optional(string)
       ssl_policy = optional(object({
         policy_type          = optional(string, "Predefined")
         policy_name          = optional(string)

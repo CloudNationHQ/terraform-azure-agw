@@ -645,6 +645,7 @@ resource "azurerm_application_gateway" "this" {
       trusted_client_certificate_names     = ssl_profile.value.trusted_client_certificate_names
       verify_client_certificate_issuer_dn  = coalesce(ssl_profile.value.verify_client_certificate_issuer_dn, ssl_profile.value.verify_client_cert_issuer_dn)
       verify_client_certificate_revocation = ssl_profile.value.verify_client_certificate_revocation
+      client_authentication_mode           = ssl_profile.value.client_authentication_mode
 
       dynamic "ssl_policy" {
         for_each = ssl_profile.value.ssl_policy != null ? { this = ssl_profile.value.ssl_policy } : {}
