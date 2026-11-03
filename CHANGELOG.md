@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v3.0.0...v3.1.0) (2026-11-03)
+
+
+### Features
+
+* add client_authentication_mode to ssl_profile ([#93](https://github.com/CloudNationHQ/terraform-azure-agw/issues/93)) ([f197036](https://github.com/CloudNationHQ/terraform-azure-agw/commit/f1970365ea04f19d33ccf5c8dc4ae8d06bd176b6)), closes [#92](https://github.com/CloudNationHQ/terraform-azure-agw/issues/92)
+* **deps:** bump github.com/klauspost/compress in /tests ([#91](https://github.com/CloudNationHQ/terraform-azure-agw/issues/91)) ([d271e74](https://github.com/CloudNationHQ/terraform-azure-agw/commit/d271e7414a56bacd4ce311afb5d4bc89ea52af8a))
+
 ## [3.0.0](https://github.com/CloudNationHQ/terraform-azure-agw/compare/v2.2.1...v3.0.0) (2026-09-21)
 
 
